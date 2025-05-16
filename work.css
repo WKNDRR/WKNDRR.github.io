@@ -1,0 +1,81 @@
+body {
+  margin: 0;
+  font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  background: #fff;
+}
+
+.work-link {
+  position: fixed;
+  top: 18px;
+  left: 18px;
+  color: #1e2222;
+  font-weight: 700;
+  font-size: 1rem;
+  text-decoration: none;
+  letter-spacing: 0.04em;
+  opacity: 0.8;
+  z-index: 10;
+}
+
+.work-container {
+  max-width: 1600px;
+  margin: 70px auto 0 auto;
+  padding: 16px;
+}
+
+.single-img {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 70px;
+}
+
+.single-img img {
+  max-width: 900px; /* Beaucoup plus large */
+  width: 100%;
+  height: auto;
+  display: block;
+  box-shadow: 0 2px 24px 0 rgba(0,0,0,0.02);
+  background: #eee;
+}
+
+.row-pair {
+  display: flex;
+  gap: 5vw;
+  justify-content: flex-start;
+  margin-bottom: 70px;
+}
+
+.pair-img {
+  flex: 1 1 0;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.pair-img img {
+  max-width: 800px; /* Large aussi */
+  width: 100%;
+  height: auto;
+  display: block;
+  background: #eee;
+}
+
+.caption {
+  font-size: 0.92rem;
+  color: #333;
+  margin-top: 9px;
+  margin-left: 2px;
+  opacity: 0.65;
+  letter-spacing: 0.01em;
+}
+
+/* Responsive : images côte à côte passent l'une sous l'autre, espacées */
+@media (max-width: 1200px) {
+  .single-img img, .pair-img img {
+    max-width: 98vw;
+  }
+}
+@media (max-width: 850px) {
+  .work-container {padding-left: 2vw; padding-right: 2vw;}
+  .row-pair {flex-direction: column; gap: 36px;}
+}
