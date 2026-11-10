@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>weekender studio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a0c">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="studio.css">
+</head>
+<body>
+  <canvas id="ambient" width="32" height="32" aria-hidden="true"></canvas>
+
+  <main id="stage">
+    <div id="frame"><canvas id="view"></canvas></div>
+    <div id="handle" hidden title="Glisser pour déplacer le point"></div>
+
+    <section id="empty" class="glass">
+      <div class="empty-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg>
+      </div>
+      <h1>Déposez une photo</h1>
+      <p>JPEG, PNG, WebP — ou un fichier RAW (aperçu intégré).</p>
+      <div class="empty-actions">
+        <button class="btn primary" data-act="open">Choisir un fichier</button>
+        <button class="btn" data-act="sample">Essayer avec un exemple</button>
+      </div>
+    </section>
+  </main>
+
+  <header id="bar" class="glass">
+    <a class="brand" href="../" title="Retour au portfolio">weekender <span>studio</span></a>
+    <span class="sep"></span>
+    <button class="icon" data-act="open" title="Ouvrir (⌘O)"><svg viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2-2h3.5l2 2H18a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg></button>
+    <button class="icon needs-doc" data-act="rotate" title="Pivoter de 90°"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4.5h-4.5"/></svg></button>
+    <button class="icon needs-doc" data-act="undo" title="Annuler (⌘Z)"><svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5M4 12h10a6 6 0 0 1 0 12"  transform="translate(0 -3)"/></svg></button>
+    <button class="icon needs-doc" data-act="redo" title="Rétablir (⇧⌘Z)"><svg viewBox="0 0 24 24"><path d="m15 7 5 5-5 5m5-5H10a6 6 0 0 0 0 12" transform="translate(0 -3)"/></svg></button>
+    <button class="icon needs-doc" id="compare" title="Avant / après : maintenir la touche A"><svg viewBox="0 0 24 24"><path d="M12 3v18M5 6h4v12H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zm10 0h4a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-4" /></svg></button>
+    <span class="sep"></span>
+    <button class="btn primary needs-doc" data-act="export-menu">Exporter</button>
+  </header>
+
+  <div id="export" class="glass popover" hidden>
+    <label class="row"><span>Format</span>
+      <select id="ex-type"><option value="image/jpeg">JPEG</option><option value="image/png">PNG</option><option value="image/webp">WebP</option></select></label>
+    <label class="row"><span>Taille</span>
+      <select id="ex-size"><option value="0">Originale</option><option value="4000">4000 px</option><option value="2500">2500 px</option><option value="1600">1600 px</option></select></label>
+    <div class="param" id="ex-q-row"><div class="param-head"><span>Qualité</span><output id="ex-q-out">92</output></div>
+      <input type="range" id="ex-q" min="50" max="100" value="92"></div>
+    <button class="btn primary wide" data-act="export">Enregistrer</button>
+  </div>
+
+  <aside id="panel" class="glass">
+    <div class="panel-head">
+      <h2>Effets</h2>
+      <button class="icon accent" data-act="add" title="Ajouter un effet"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    </div>
+    <div id="layers"></div>
+  </aside>
+
+  <div id="add" class="glass popover" hidden></div>
+
+  <nav id="looks" class="glass" aria-label="Looks"></nav>
+
+  <div id="result" hidden><img alt="Image exportée"><p class="glass">Clic droit ou appui long sur l’image pour l’enregistrer · cliquez à côté pour fermer</p></div>
+
+  <div id="toast" class="glass" hidden></div>
+  <input type="file" id="file" accept="image/*,.cr2,.cr3,.nef,.arw,.dng,.raf,.orf,.rw2,.pef,.srw" hidden>
+  <input type="file" id="file2" accept="image/*" hidden>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
