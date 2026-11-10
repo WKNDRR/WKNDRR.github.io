@@ -329,7 +329,7 @@ async function exportImage() {
 let pickFor = null;
 const actions = {
   open: () => $('#file').click(),
-  sample: async () => { try { const r = await fetch('wkndr1.jpg'); await setDocument(await createImageBitmap(await r.blob()), 'exemple'); } catch { toast('Exemple indisponible'); } },
+  sample: async () => { try { const r = await fetch('exemple.jpg'); await setDocument(await createImageBitmap(await r.blob()), 'exemple'); } catch { toast('Exemple indisponible'); } },
   rotate, undo: () => travel(-1), redo: () => travel(1),
   add: () => { $('#add').hidden = !$('#add').hidden; $('#export').hidden = true; },
   'export-menu': () => { $('#export').hidden = !$('#export').hidden; $('#add').hidden = true; },
