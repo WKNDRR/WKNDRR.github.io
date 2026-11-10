@@ -179,7 +179,7 @@ void main(){ vec2 p=(v_uv-u_pt)*u_res/u_unit/vec2(u_zone*0.85,u_zone*1.25); floa
   vec3 s=texture(u_src,v_uv).rgb,b1=texture(u_b1,v_uv).rgb,b2=texture(u_b2,v_uv).rgb;
   o=vec4(a<0.5?mix(s,b1,a*2.0):mix(b1,b2,a*2.0-1.0),1.0); }`;
 
-S.mfgrade = `uniform sampler2D u_hal; uniform float u_halo,u_str,u_sat,u_con,u_gamma,u_vig,u_grain,u_border,u_bw;
+S.mfgrade = `uniform sampler2D u_hal; uniform float u_halo,u_str,u_sat,u_con,u_gamma,u_vig,u_grain,u_gsize,u_border,u_bw;
 uniform vec3 u_lift,u_sh,u_hi,u_green;
 void main(){ vec2 m=vec2(u_bw*u_unit)/u_res; vec2 uv=(v_uv-m)/(1.0-2.0*m);
   vec3 c=clamp(texture(u_src,uv).rgb,0.0,1.0);
@@ -189,11 +189,53 @@ void main(){ vec2 m=vec2(u_bw*u_unit)/u_res; vec2 uv=(v_uv-m)/(1.0-2.0*m);
   float gm=clamp((g.g-max(g.r,g.b))*3.0,0.0,1.0); g+=u_green*gm;
   g+=u_sh*(1.0-l)*(1.0-l)+u_hi*l*l; g=g*(1.0-u_lift)+u_lift;
   g=1.0-(1.0-g)*(1.0-0.04*smoothstep(0.7,1.0,l)); g=min(g,vec3(0.985))+max(g-0.985,0.0)*0.3;
-  c=mix(c,g,u_str); c*=vig(uv,u_vig); c=addGrain(c,v_uv*u_res,u_grain,1.15,0.35);
+  c=mix(c,g,u_str); c*=vig(uv,u_vig); c=addGrain(c,v_uv*u_res,u_grain,u_gsize,0.35);
   if(u_border>0.0){ vec2 q=abs(uv-0.5)*u_res-0.5*u_res+u_unit*0.004; float d=length(max(q,0.0))-u_unit*0.004;
     float k=smoothstep(-1.0,1.0,d/(u_unit/1800.0));
     vec3 bc=u_border==1.0?vec3(0.965,0.96,0.945):vec3(0.035,0.033,0.03); bc+=grainN(v_uv*u_res,1.2,0.0)*0.012;
     c=mix(c,bc,k); }
+  o=vec4(c,1.0); }`;
+
+S.ovl = `uniform sampler2D u_ov; void main(){ vec3 c=texture(u_src,v_uv).rgb; vec4 v=texture(u_ov,v_uv); o=vec4(mix(c,v.rgb,v.a),1.0); }`;
+
+S.card = `uniform vec4 u_rect; uniform vec2 u_sc,u_so; uniform vec3 u_col;
+void main(){ vec2 q=(v_uv-u_rect.xy)/u_rect.zw; vec2 d=(abs(q-0.5)-0.5)*u_rect.zw*u_res; float outside=max(d.x,d.y);
+  vec3 paper=u_col+grainN(v_uv*u_res,2.2,0.0)*0.012; paper*=1.0-0.07*exp(-max(outside,0.0)/(u_unit*0.004));
+  vec3 img=texture(u_src,u_so+clamp(q,0.0,1.0)*u_sc).rgb; o=vec4(mix(img,paper,smoothstep(-0.7,0.7,outside)),1.0); }`;
+
+S.poly = `uniform sampler2D u_i1,u_i2; uniform float u_n,u_dir,u_g,u_m,u_ps,u_pa,u_var,u_seed,u_split,u_a0,u_a1,u_a2,u_has1,u_has2; uniform vec3 u_col;
+void main(){ vec2 px=v_uv*u_res; float t=u_dir==0.0?px.x:px.y, c=u_dir==0.0?px.y:px.x, C=u_dir==0.0?u_res.y:u_res.x;
+  float local=t-u_m; float id=floor(local/(u_ps+u_g)); float f=local-id*(u_ps+u_g);
+  float e=min(min(f,u_ps-f),min(c-u_m,C-u_m-c)); float inside=(local>=0.0&&id<u_n)?smoothstep(-0.6,0.6,e):0.0;
+  vec2 q=u_dir==0.0?vec2(f/u_ps,(c-u_m)/(C-2.0*u_m)):vec2((c-u_m)/(C-2.0*u_m),f/u_ps);
+  bool own=(id==1.0&&u_has1>0.5)||(id==2.0&&u_has2>0.5);
+  float z=1.0+u_var*1.3*hash(vec2(id+u_seed*7.0,1.0));
+  vec2 rnd=vec2(hash(vec2(id+u_seed*7.0,2.0)),hash(vec2(id+u_seed*7.0,3.0)))-0.5; vec2 uv;
+  if(u_split>0.5&&!own){ vec2 ctr=u_dir==0.0?vec2((u_m+id*(u_ps+u_g)+u_ps*0.5)/u_res.x,0.5):vec2(0.5,(u_m+id*(u_ps+u_g)+u_ps*0.5)/u_res.y);
+    uv=ctr+(v_uv-ctr)/z+rnd*u_var*0.35*(u_dir==0.0?vec2(0.3,1.0):vec2(1.0,0.3)); }
+  else { float ia=id==1.0&&u_has1>0.5?u_a1:(id==2.0&&u_has2>0.5?u_a2:u_a0); uv=q-0.5;
+    if(u_pa>ia) uv.y*=ia/u_pa; else uv.x*=u_pa/ia; if(!own) uv=uv/z+rnd*(1.0-1.0/z); uv+=0.5; }
+  vec3 img=id==1.0&&u_has1>0.5?texture(u_i1,uv).rgb:(id==2.0&&u_has2>0.5?texture(u_i2,uv).rgb:texture(u_src,uv).rgb);
+  o=vec4(mix(u_col,img,inside),1.0); }`;
+
+S.select = `uniform vec3 u_col; uniform float u_target,u_tol,u_int;
+void main(){ vec3 c=clamp(texture(u_src,v_uv).rgb,0.0,1.0); float l=luma(c); float mx=max(c.r,max(c.g,c.b)),mn=min(c.r,min(c.g,c.b)); float m;
+  if(u_target==0.0){ float sat=(mx-mn)/max(mx,0.001); float warm=smoothstep(0.0,0.06,c.r-c.g)*smoothstep(-0.02,0.05,c.g-c.b);
+    m=warm*smoothstep(0.08-u_tol*0.07,0.2-u_tol*0.1,sat)*smoothstep(0.12-u_tol*0.1,0.3-u_tol*0.15,l)*(1.0-smoothstep(0.55+u_tol*0.4,0.8+u_tol*0.4,sat)); }
+  else if(u_target==1.0) m=smoothstep(0.75-u_tol*0.6,0.95-u_tol*0.5,l);
+  else m=1.0-smoothstep(0.1+u_tol*0.3,0.3+u_tol*0.6,l);
+  o=vec4(mix(c,pow(l,0.8)*u_col*1.6,m*u_int),1.0); }`;
+
+S.serig = `uniform vec3 u_a,u_b; uniform float u_thr,u_soft,u_detail,u_inv;
+void main(){ float l=luma(texture(u_src,v_uv).rgb); if(u_inv>0.5) l=1.0-l; float t=smoothstep(u_thr-u_soft,u_thr+u_soft+0.001,l);
+  vec3 b=u_b*(1.0-u_detail*0.55*(1.0-smoothstep(u_thr,1.0,l))); vec3 a=u_a*(1.0-u_detail*0.4*(1.0-smoothstep(0.0,u_thr,l)));
+  o=vec4(mix(a,b,t),1.0); }`;
+
+S.strobe = `uniform sampler2D u_sharp; uniform float u_count,u_dist,u_angle,u_thr,u_keep;
+void main(){ vec3 c=texture(u_src,v_uv).rgb; vec2 d=vec2(cos(u_angle),sin(u_angle))*u_dist*u_unit/u_res;
+  c=mix(c,texture(u_sharp,v_uv).rgb,u_keep);
+  for(int i=0;i<10;i++){ float k=float(i); if(k>=u_count) break; float t=(k+0.5)/u_count-0.5;
+    vec3 s=texture(u_sharp,v_uv+d*t).rgb; float w=smoothstep(u_thr,u_thr+0.1,luma(s)); c=max(c,s*w); }
   o=vec4(c,1.0); }`;
 
 const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
@@ -202,19 +244,55 @@ const rad = (d) => (d * Math.PI) / 180;
 export const SHUTTER = ['1/500', '1/250', '1/125', '1/60', '1/30', '1/15', '1/8', '1/4', '1/2', '1″', '2″'];
 const SHUTTER_T = [1 / 500, 1 / 250, 1 / 125, 1 / 60, 1 / 30, 1 / 15, 1 / 8, 1 / 4, 1 / 2, 1, 2];
 
-export const FORMATS = { orig: 0, '645': 4 / 3, '66': 1, '67': 5 / 4, '69': 3 / 2, xpan: 65 / 24 };
+export const FORMATS = { orig: 0, '135': 3 / 2, '645': 4 / 3, '66': 1, '67': 5 / 4, '69': 3 / 2, xpan: 65 / 24 };
 
 const STOCKS = {
   warm: { sat: 0.93, con: 0.18, gamma: 0.95, lift: [0.035, 0.03, 0.026], sh: [-0.012, 0.008, 0.016], hi: [0.032, 0.012, -0.022], green: [0.035, -0.01, -0.02] },
   cool: { sat: 0.84, con: 0.1, gamma: 0.9, lift: [0.045, 0.05, 0.05], sh: [-0.016, 0.014, 0.012], hi: [-0.004, 0.012, 0.01], green: [-0.035, 0.0, 0.03] },
   vivid: { sat: 1.24, con: 0.42, gamma: 1.02, lift: [0.008, 0.008, 0.01], sh: [-0.008, 0.0, 0.014], hi: [0.02, 0.006, -0.012], green: [0.0, 0.02, -0.01] },
   bw: { sat: 0, con: 0.38, gamma: 0.98, lift: [0.022, 0.022, 0.022], sh: [0, 0, 0], hi: [0.008, 0.004, -0.004], green: [0, 0, 0] },
+  portra: { sat: 0.95, con: 0.2, gamma: 0.94, lift: [0.04, 0.034, 0.03], sh: [-0.012, 0.01, 0.016], hi: [0.034, 0.014, -0.024], green: [0.04, -0.012, -0.02] },
+  ultramax: { sat: 1.2, con: 0.34, gamma: 0.98, lift: [0.02, 0.022, 0.016], sh: [-0.006, 0.016, -0.004], hi: [0.04, 0.016, -0.034], green: [0.025, 0.02, -0.025] },
+  kodachrome: { sat: 1.18, con: 0.55, gamma: 1.06, lift: [0.006, 0.006, 0.012], sh: [-0.014, -0.006, 0.026], hi: [0.026, 0.004, -0.02], green: [-0.02, 0.0, 0.01] },
+  gold: { sat: 1.1, con: 0.26, gamma: 0.96, lift: [0.03, 0.026, 0.014], sh: [0.006, 0.008, -0.012], hi: [0.045, 0.024, -0.04], green: [0.04, 0.01, -0.03] },
+  superia: { sat: 1.06, con: 0.3, gamma: 0.98, lift: [0.018, 0.026, 0.022], sh: [-0.02, 0.022, 0.006], hi: [0.014, -0.004, 0.012], green: [-0.03, 0.02, 0.02] },
+  cine: { sat: 1.02, con: 0.28, gamma: 0.97, lift: [0.016, 0.024, 0.036], sh: [-0.024, 0.008, 0.034], hi: [-0.012, 0.01, 0.03], green: [-0.01, 0.0, 0.02] },
+  trix: { sat: 0, con: 0.55, gamma: 1.0, lift: [0.02, 0.02, 0.02], sh: [0, 0, 0], hi: [0, 0, 0], green: [0, 0, 0] },
+  instax: { sat: 1.06, con: 0.34, gamma: 0.96, lift: [0.035, 0.04, 0.052], sh: [-0.012, 0.008, 0.022], hi: [0.012, 0.01, -0.006], green: [0.0, 0.012, 0.0] },
   neutral: { sat: 1, con: 0.1, gamma: 1, lift: [0.012, 0.012, 0.012], sh: [0, 0, 0], hi: [0, 0, 0], green: [0, 0, 0] },
 };
 
 const R = (k, label, min, max, def, extra = {}) => ({ k, label, type: 'range', min, max, step: 1, def, ...extra });
 const deg = (v) => `${v}°`;
 const pct = (v) => `${v}`;
+
+// Étalonnage pellicule partagé : halation, courbe, teintes, vignettage, grain, bordure.
+function filmGrade(E, cur, st, o) {
+  const unit = Math.max(cur.w, cur.h);
+  const br = E.target(Math.ceil(cur.w / 2), Math.ceil(cur.h / 2));
+  E.draw('bright', br, { u_src: cur, u_thr: 0.72, u_px: 2 });
+  const hal = E.blur(br, (o.halr || 0.006) * unit); E.release(br);
+  const out = E.pass('mfgrade', cur, { u_hal: hal, u_halo: o.halo, u_str: o.str, u_sat: st.sat, u_con: st.con, u_gamma: st.gamma, u_lift: st.lift, u_sh: st.sh, u_hi: st.hi, u_green: st.green, u_vig: o.vig, u_grain: o.grain, u_gsize: o.gsize, u_border: o.border || 0, u_bw: o.border ? 0.035 : 0 });
+  E.release(hal);
+  return out;
+}
+
+const STOCK35 = [['portra', 'Portra 400'], ['ultramax', 'Ultramax 400'], ['kodachrome', 'Kodachrome 64'], ['gold', 'Gold 200'], ['superia', 'Superia 400'], ['cine', 'Ciné 800T'], ['trix', 'Tri-X 400']];
+
+// Amorce 35 mm : repères et nom de la pellicule le long des grands côtés.
+function rebate(w, h, label) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'), L = Math.max(w, h), S = Math.min(w, h), bw = 0.035 * L;
+  if (h > w) { g.translate(w, 0); g.rotate(Math.PI / 2); }
+  g.fillStyle = '#f2a23a'; g.textBaseline = 'middle';
+  g.font = `700 ${bw * 0.44}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
+  const y0 = bw * 0.52, y1 = S - bw * 0.48;
+  g.fillText('53', L * 0.1, y0); g.fillText(label.toUpperCase(), L * 0.36, y0); g.fillText('54', L * 0.84, y0);
+  g.fillText('▶ 11', L * 0.08, y1); g.fillText('11A', L * 0.33, y1); g.fillText('▶ 12', L * 0.58, y1); g.fillText('12A', L * 0.83, y1);
+  return c;
+}
+
+const INSTAX = { mini: { card: [54, 86], img: [46, 62], top: 7 }, square: { card: [72, 86], img: [62, 62], top: 7.5 }, wide: { card: [108, 86], img: [99, 62], top: 7.5 } };
 
 // Catalogue des effets. render(E, input, params, layer) renvoie une nouvelle cible.
 export const FX = {
@@ -236,6 +314,24 @@ export const FX = {
       E.release(a);
       if (p.flash > 0) { const c = E.pass('flash', b, { u_sharp: inp, u_f: p.flash / 100 }); E.release(b); b = c; }
       return b;
+    },
+  },
+  strobe: {
+    name: 'Stroboscope', group: 'Mouvement', hint: 'Bougé avec reflets saccadés',
+    params: [
+      R('blur', 'Bougé', 0, 100, 45, { fmt: pct }),
+      R('count', 'Éclats', 2, 10, 5),
+      R('dist', 'Écart', 0, 100, 35, { fmt: pct }),
+      R('angle', 'Angle', -180, 180, 0, { fmt: deg }),
+      R('thr', 'Seuil', 30, 98, 72, { fmt: pct }),
+      R('keep', 'Netteté conservée', 0, 100, 20, { fmt: pct }),
+    ],
+    render(E, inp, p) {
+      const u = { u_angle: rad(p.angle), u_trail: 0 }, len = (p.blur / 100) * 0.12 + 0.0005;
+      const a = E.pass('motion', inp, { ...u, u_len: len, u_jit: 0.6 });
+      const b = E.pass('motion', a, { ...u, u_len: len / 32, u_jit: 0 }); E.release(a);
+      const out = E.pass('strobe', b, { u_sharp: inp, u_count: p.count, u_dist: (p.dist / 100) * 0.16, u_angle: rad(p.angle), u_thr: p.thr / 100, u_keep: (p.keep / 100) * 0.6 });
+      E.release(b); return out;
     },
   },
   smear: {
@@ -372,15 +468,108 @@ export const FX = {
         cur = E.pass('dof', inp, { u_b1: b1, u_b2: b2, u_pt: L.pt, u_zone: 0.05 + (p.zone / 100) * 0.45 });
         E.release(b1); E.release(b2);
       }
-      const br = E.target(Math.ceil(inp.w / 2), Math.ceil(inp.h / 2));
-      E.draw('bright', br, { u_src: cur, u_thr: 0.72, u_px: 2 });
-      const hal = E.blur(br, 0.006 * unit); E.release(br);
-      const st = STOCKS[p.stock];
-      const border = ['none', 'white', 'black'].indexOf(p.border);
-      const out = E.pass('mfgrade', cur, { u_hal: hal, u_halo: (p.halo / 100) * 0.9, u_str: p.str / 100, u_sat: st.sat, u_con: st.con, u_gamma: st.gamma, u_lift: st.lift, u_sh: st.sh, u_hi: st.hi, u_green: st.green, u_vig: (p.vig / 100) * 0.55, u_grain: (p.grain / 100) * 0.09, u_border: border, u_bw: border ? 0.035 : 0 });
-      E.release(hal); if (cur !== inp) E.release(cur);
+      const out = filmGrade(E, cur, STOCKS[p.stock], { str: p.str / 100, halo: (p.halo / 100) * 0.9, vig: (p.vig / 100) * 0.55, grain: (p.grain / 100) * 0.09, gsize: 1.15, border: ['none', 'white', 'black'].indexOf(p.border) });
+      if (cur !== inp) E.release(cur);
       return out;
     },
+  },
+  film35: {
+    name: 'Film 35 mm', group: 'Pellicule', hint: 'Portra, Ultramax, Kodachrome… grain 135',
+    params: [
+      { k: 'stock', label: 'Pellicule', type: 'select', def: 'portra', options: STOCK35 },
+      { k: 'format', label: 'Format', type: 'select', def: 'orig', options: [['orig', 'Original'], ['135', '24 × 36']] },
+      R('str', 'Rendu pellicule', 0, 100, 90, { fmt: pct }),
+      R('grain', 'Grain', 0, 100, 55, { fmt: pct }),
+      R('halo', 'Halation', 0, 100, 40, { fmt: pct }),
+      R('vig', 'Vignettage', 0, 100, 30, { fmt: pct }),
+      { k: 'border', label: 'Amorce du film', type: 'toggle', def: false },
+    ],
+    render(E, inp, p) {
+      const cine = p.stock === 'cine';
+      let out = filmGrade(E, inp, STOCKS[p.stock], { str: p.str / 100, halo: (p.halo / 100) * (cine ? 1.8 : 1), halr: cine ? 0.012 : 0.007, vig: (p.vig / 100) * 0.6, grain: (p.grain / 100) * 0.16, gsize: 1.9, border: p.border ? 2 : 0 });
+      if (p.border) {
+        const label = STOCK35.find((o) => o[0] === p.stock)[1];
+        const k = Math.min(1, 3000 / Math.max(out.w, out.h)), w = Math.round(out.w * k), h = Math.round(out.h * k);
+        const ov = E.cached(`rebate:${w}x${h}:${label}`, () => rebate(w, h, label));
+        const t = E.pass('ovl', out, { u_ov: ov }); E.release(out); out = t;
+      }
+      return out;
+    },
+  },
+  instax: {
+    name: 'Instax', group: 'Pellicule', hint: 'Tirage instantané avec son cadre',
+    params: [
+      { k: 'format', label: 'Format', type: 'select', def: 'mini', options: [['mini', 'Mini'], ['square', 'Carré'], ['wide', 'Wide']] },
+      { k: 'frame', label: 'Cadre', type: 'select', def: '#f5f3ec', options: [['#f5f3ec', 'Blanc'], ['#ece3cf', 'Crème'], ['#161616', 'Noir']] },
+      R('str', 'Rendu instantané', 0, 100, 85, { fmt: pct }),
+      R('grain', 'Grain', 0, 100, 25, { fmt: pct }),
+      R('vig', 'Vignettage', 0, 100, 40, { fmt: pct }),
+    ],
+    render(E, inp, p) {
+      const g = filmGrade(E, inp, STOCKS.instax, { str: p.str / 100, halo: 0.25, vig: (p.vig / 100) * 0.6, grain: (p.grain / 100) * 0.12, gsize: 1.3 });
+      const f = INSTAX[p.format], a = f.img[0] / f.img[1];
+      let cw = inp.w, ch = inp.h;
+      if (inp.w / inp.h > a) cw = inp.h * a; else ch = inp.w / a;
+      let mm = cw / f.img[0];
+      mm = Math.min(mm, E.maxTex / Math.max(...f.card));
+      const out = E.target(Math.round(f.card[0] * mm), Math.round(f.card[1] * mm));
+      E.draw('card', out, { u_src: g, u_col: hex(p.frame), u_sc: [cw / inp.w, ch / inp.h], u_so: [(1 - cw / inp.w) / 2, (1 - ch / inp.h) / 2], u_rect: [(f.card[0] - f.img[0]) / 2 / f.card[0], f.top / f.card[1], f.img[0] / f.card[0], f.img[1] / f.card[1]] });
+      E.release(g);
+      return out;
+    },
+  },
+  poly: {
+    name: 'Diptyque / Triptyque', group: 'Pellicule', hint: 'Assembler ou découper en 2 ou 3 volets',
+    params: [
+      { k: 'count', label: 'Volets', type: 'select', def: '2', options: [['2', 'Diptyque'], ['3', 'Triptyque']] },
+      { k: 'mode', label: 'Mode', type: 'select', def: 'extend', options: [['extend', 'Assembler'], ['split', 'Découper l’image']] },
+      { k: 'dir', label: 'Disposition', type: 'select', def: 'h', options: [['h', 'Côte à côte'], ['v', 'Empilés']] },
+      { k: 'img', label: 'Volet 2', type: 'image', slot: ':1' },
+      { k: 'img2', label: 'Volet 3', type: 'image', slot: ':2', when: (p) => p.count === '3' },
+      R('gap', 'Espace', 0, 100, 30, { fmt: pct }),
+      { k: 'frame', label: 'Marge autour', type: 'toggle', def: true },
+      { k: 'col', label: 'Couleur du fond', type: 'color', def: '#f4f2ec' },
+      R('var', 'Variation de cadrage', 0, 100, 0, { fmt: pct }),
+      R('seed', 'Variante', 1, 20, 1),
+    ],
+    render(E, inp, p, L) {
+      const n = +p.count, horiz = p.dir === 'h', split = p.mode === 'split';
+      const i1 = E.assets.get(L.id + ':1'), i2 = n === 3 ? E.assets.get(L.id + ':2') : null;
+      let g = (p.gap / 100) * 0.06 * Math.max(inp.w, inp.h), m = p.frame ? g : 0, w, h, ps;
+      if (split) { w = inp.w; h = inp.h; ps = ((horiz ? w : h) - 2 * m - (n - 1) * g) / n; }
+      else {
+        let k = 1; ps = horiz ? inp.w : inp.h;
+        w = horiz ? n * inp.w + (n - 1) * g + 2 * m : inp.w + 2 * m; h = horiz ? inp.h + 2 * m : n * inp.h + (n - 1) * g + 2 * m;
+        if (Math.max(w, h) > E.maxTex) { k = E.maxTex / Math.max(w, h); w *= k; h *= k; g *= k; m *= k; ps *= k; }
+        w = Math.round(w); h = Math.round(h);
+      }
+      const cross = (horiz ? h : w) - 2 * m, out = E.target(w, h);
+      E.draw('poly', out, { u_src: inp, u_i1: i1 || inp, u_i2: i2 || inp, u_has1: i1 ? 1 : 0, u_has2: i2 ? 1 : 0, u_a0: inp.w / inp.h, u_a1: i1 ? i1.w / i1.h : 1, u_a2: i2 ? i2.w / i2.h : 1,
+        u_n: n, u_dir: horiz ? 0 : 1, u_g: g, u_m: m, u_ps: ps, u_pa: horiz ? ps / cross : cross / ps, u_var: p.var / 100, u_seed: p.seed, u_split: split ? 1 : 0, u_col: hex(p.col) });
+      return out;
+    },
+  },
+  select: {
+    name: 'Teinte sélective', group: 'Couleur', hint: 'Colorer la peau, les lumières ou les ombres',
+    params: [
+      { k: 'target', label: 'Cible', type: 'select', def: 'skin', options: [['skin', 'Peau'], ['hi', 'Hautes lumières'], ['sh', 'Ombres']] },
+      { k: 'col', label: 'Couleur', type: 'color', def: '#ff1e0a' },
+      R('tol', 'Tolérance', 0, 100, 50, { fmt: pct }),
+      R('int', 'Intensité', 0, 100, 90, { fmt: pct }),
+    ],
+    render: (E, inp, p) => E.pass('select', inp, { u_col: hex(p.col), u_target: ['skin', 'hi', 'sh'].indexOf(p.target), u_tol: p.tol / 100, u_int: p.int / 100 }),
+  },
+  serig: {
+    name: 'Sérigraphie', group: 'Couleur', hint: 'Aplats de couleur à seuil, façon négatif',
+    params: [
+      { k: 'a', label: 'Fond', type: 'color', def: '#d9211c' },
+      { k: 'b', label: 'Sujet', type: 'color', def: '#fbe6ea' },
+      R('thr', 'Seuil', 0, 100, 45, { fmt: pct }),
+      R('soft', 'Douceur', 0, 100, 10, { fmt: pct }),
+      R('detail', 'Détail', 0, 100, 35, { fmt: pct }),
+      { k: 'inv', label: 'Inverser', type: 'toggle', def: false },
+    ],
+    render: (E, inp, p) => E.pass('serig', inp, { u_a: hex(p.a), u_b: hex(p.b), u_thr: p.thr / 100, u_soft: (p.soft / 100) * 0.3, u_detail: p.detail / 100, u_inv: p.inv ? 1 : 0 }),
   },
   tone: {
     name: 'Réglages', group: 'Couleur', hint: 'Exposition, contraste, saturation',
@@ -565,13 +754,22 @@ export class Engine {
   upload(bitmap) {
     return { tex: this.texture(0, 0, bitmap), w: bitmap.width, h: bitmap.height };
   }
+  // Texture issue d'un canvas 2D (texte, cadres), gardée en cache par clé.
+  cached(key, make) {
+    this.texCache ||= new Map();
+    if (!this.texCache.has(key)) {
+      if (this.texCache.size > 3) { for (const t of this.texCache.values()) this.drop(t); this.texCache.clear(); }
+      this.texCache.set(key, this.upload(make()));
+    }
+    return this.texCache.get(key);
+  }
   drop(t) { if (t) this.gl.deleteTexture(t.tex); }
   setSource(bitmap) { this.drop(this.src); this.src = this.upload(bitmap); }
-  setAsset(id, bitmap) { this.drop(this.assets.get(id)); this.assets.set(id, this.upload(bitmap)); }
+  setAsset(id, bitmap) { /* id : identifiant du calque, suivi d'un emplacement éventuel */ this.drop(this.assets.get(id)); this.assets.set(id, this.upload(bitmap)); }
 
   // Recadrage centré d'après le format du premier calque « Moyen format » actif.
   static crop(layers, w, h) {
-    const L = layers.find((l) => l.on && l.fx === 'medium' && l.p.format !== 'orig');
+    const L = layers.find((l) => l.on && (l.fx === 'medium' || l.fx === 'film35') && l.p.format !== 'orig');
     if (!L) return { w, h, off: [0, 0], scale: [1, 1] };
     let r = FORMATS[L.p.format]; if (h > w) r = 1 / r;
     let cw = w, ch = h;
@@ -588,13 +786,13 @@ export class Engine {
       if (!L.on) continue;
       let out = FX[L.fx].render(this, cur, L.p, L);
       if (out === cur) continue;
-      if (L.opacity < 1 || L.zone !== 'all') {
+      if ((L.opacity < 1 || L.zone !== 'all') && out.w === cur.w && out.h === cur.h) {
         const m = this.pass('mix', cur, { u_fx: out, u_op: L.opacity, u_zone: ZONES.indexOf(L.zone), u_zpos: L.zpos, u_zfe: L.zfe * 0.5, u_pt: L.pt });
         this.release(out); out = m;
       }
       this.release(cur); cur = out;
     }
-    if (this.canvas.width !== c.w || this.canvas.height !== c.h) { this.canvas.width = c.w; this.canvas.height = c.h; }
+    if (this.canvas.width !== cur.w || this.canvas.height !== cur.h) { this.canvas.width = cur.w; this.canvas.height = cur.h; }
     this.draw('blit', null, { u_src: cur, u_flip: 1 });
     this.release(cur);
   }

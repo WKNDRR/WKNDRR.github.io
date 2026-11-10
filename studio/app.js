@@ -122,9 +122,9 @@ function paramControl(L, d) {
     return el('label', { class: 'row' }, el('span', {}, d.label), c);
   }
   if (d.type === 'image') {
-    const has = engine.assets.has(L.id);
-    return el('div', { class: 'row' }, el('span', {}, has ? 'Seconde image chargée' : 'Aucune image'),
-      el('button', { class: 'btn', onclick: () => { pickFor = L.id; $('#file2').click(); } }, has ? 'Remplacer' : 'Choisir…'));
+    const key = L.id + (d.slot || ''), has = engine.assets.has(key);
+    return el('div', { class: 'row' }, el('span', {}, `${d.label} : ${has ? 'image chargée' : d.slot ? 'même photo' : 'aucune image'}`),
+      el('button', { class: 'btn', onclick: () => { pickFor = key; $('#file2').click(); } }, has ? 'Remplacer' : 'Choisir…'));
   }
   return null;
 }
@@ -209,11 +209,16 @@ function buildAddMenu() {
 // ---------- Looks ----------
 const LOOKS = [
   ['Moyen format', [['medium']]],
+  ['35 mm', [['film35', { p: { border: true, format: '135' } }]]],
+  ['Instax', [['instax']]],
+  ['Triptyque', [['duotone', { p: { a: '#0a1622', b: '#bfe6ff', con: 20 } }], ['poly', { p: { count: '3', mode: 'split', dir: 'v', gap: 18, frame: false, var: 60, seed: 3 } }], ['grain', { p: { amt: 30, col: 0 } }]]],
+  ['Rouge', [['select', { p: { col: '#ff1e0a', tol: 60 } }], ['tone', { p: { con: 15, sat: 115 } }], ['grain', { p: { amt: 30 } }]]],
+  ['Sérigraphie', [['serig'], ['grain', { p: { amt: 25, col: 0 } }]]],
+  ['Stroboscope', [['strobe'], ['tone', { p: { fade: 30, sat: 90 } }], ['grain', { p: { amt: 65, size: 18 } }]]],
   ['Rêve acide', [['ghost', { p: { count: 2, dist: 22, angle: 172, decay: 80, mode: 'avg' } }], ['glow', { p: { thr: 30, radius: 45, int: 55 } }], ['tone', { p: { sat: 145, con: 18, temp: -10 } }], ['grain', { p: { amt: 45, size: 16 } }]]],
   ['Rideau', [['tone', { p: { sat: 0, con: 30 } }], ['motion', { p: { shutter: 7, move: 55 }, zone: 'left', zpos: 0.62, zfe: 0.01 }], ['grain', { p: { amt: 35, col: 0 } }]]],
   ['Ultraviolet', [['ghost', { p: { count: 3, dist: 0, scale: 112, decay: 85, mode: 'lighten' } }], ['gel', { p: { a: '#2a18ff', b: '#12e6a0', angle: -40, spread: 70 } }], ['glow', { p: { thr: 40, radius: 30, int: 40 } }], ['grain', { p: { amt: 25 } }]]],
   ['Magenta', [['smear', { p: { len: 55, band: 45, irr: 85, lines: 10 } }], ['duotone', { p: { a: '#1f1e1b', b: '#ff2fa3', con: 90 } }], ['grain', { p: { amt: 60, size: 18, col: 0 } }]]],
-  ['Nuit étoilée', [['star', { p: { points: 6, len: 55, thr: 80, int: 50 } }], ['gel', { p: { a: '#ff8a1f', b: '#1fff7a', mode: 'soft', int: 70 } }], ['glow', { p: { thr: 70, radius: 40, int: 30 } }], ['grain', { p: { amt: 40 } }]]],
   ['Néon', [['gel', { p: { a: '#1438ff', b: '#00d5ff', mode: 'light', int: 75, angle: 60 } }], ['glow', { p: { thr: 45, radius: 50, int: 60, tint: '#ff5a8a' } }], ['chroma', { p: { amt: 35 } }], ['grain', { p: { amt: 30 } }]]],
   ['Prisme', [['prism', { p: { facets: 6, amount: 45, core: 15, soft: 45, disp: 30 } }], ['glow', { p: { thr: 55, radius: 30, int: 40 } }], ['tone', { p: { sat: 120, con: 12 } }], ['grain', { p: { amt: 35 } }]]],
   ['Spectre', [['motion', { p: { shutter: 7, move: 45, trail: 60, flash: 45 } }], ['duotone', { p: { a: '#06191c', b: '#eafcff', con: 35 } }], ['glow', { p: { thr: 55, radius: 35, int: 45 } }], ['grain', { p: { amt: 50, size: 15, col: 0 } }]]],
@@ -360,9 +365,9 @@ document.addEventListener('keydown', (e) => {
   else if (mod && e.key.toLowerCase() === 'o') { e.preventDefault(); actions.open(); }
   else if (mod && e.key.toLowerCase() === 'e') { e.preventDefault(); if (doc.bitmap) actions['export-menu'](); }
   else if (e.key === 'Escape') { $('#add').hidden = true; $('#export').hidden = true; $('#result').hidden = true; }
-  else if (e.code === 'Space' && !typing && !e.repeat) { e.preventDefault(); setBefore(true); }
+  else if ((e.code === 'Space' || e.key.toLowerCase() === 'a') && !mod && !typing && !e.repeat) { e.preventDefault(); setBefore(true); }
 });
-document.addEventListener('keyup', (e) => { if (e.code === 'Space') setBefore(false); });
+document.addEventListener('keyup', (e) => { if (e.code === 'Space' || e.key.toLowerCase() === 'a') setBefore(false); });
 
 let dragDepth = 0;
 window.addEventListener('dragenter', (e) => { e.preventDefault(); dragDepth++; document.body.classList.add('dragging'); });
