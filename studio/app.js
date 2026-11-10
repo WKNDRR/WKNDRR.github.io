@@ -304,9 +304,15 @@ async function exportImage() {
     const full = await scaled(doc.bitmap, edge);
     const blob = await engine.export(full, state.layers, type, quality);
     if (full !== doc.bitmap) full.close();
-    const a = el('a', { href: URL.createObjectURL(blob), download: `${doc.name}-studio.${type.split('/')[1].replace('jpeg', 'jpg')}` });
-    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-    toast('Image exportée');
+    const url = URL.createObjectURL(blob);
+    if (window.STUDIO_NO_DOWNLOAD) {
+      // Page intégrée sans téléchargement direct : on affiche le résultat à enregistrer à la main.
+      $('#result img').src = url; $('#result').hidden = false;
+    } else {
+      el('a', { href: url, download: `${doc.name}-studio.${type.split('/')[1].replace('jpeg', 'jpg')}` }).click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      toast('Image exportée');
+    }
   } catch (e) {
     console.error(e); toast('Export impossible à cette taille — essayez une taille plus petite', 4200);
   } finally {
@@ -329,6 +335,7 @@ document.addEventListener('click', (e) => {
   if (b) { actions[b.dataset.act](); return; }
   for (const id of ['#add', '#export']) if (!e.target.closest(id)) $(id).hidden = true;
 });
+$('#result').addEventListener('click', (e) => { if (e.target.tagName !== 'IMG') $('#result').hidden = true; });
 $('#file').addEventListener('change', (e) => { openFile(e.target.files[0]); e.target.value = ''; });
 $('#file2').addEventListener('change', async (e) => {
   const f = e.target.files[0]; e.target.value = '';
@@ -352,7 +359,7 @@ document.addEventListener('keydown', (e) => {
   if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); travel(e.shiftKey ? 1 : -1); }
   else if (mod && e.key.toLowerCase() === 'o') { e.preventDefault(); actions.open(); }
   else if (mod && e.key.toLowerCase() === 'e') { e.preventDefault(); if (doc.bitmap) actions['export-menu'](); }
-  else if (e.key === 'Escape') { $('#add').hidden = true; $('#export').hidden = true; }
+  else if (e.key === 'Escape') { $('#add').hidden = true; $('#export').hidden = true; $('#result').hidden = true; }
   else if (e.code === 'Space' && !typing && !e.repeat) { e.preventDefault(); setBefore(true); }
 });
 document.addEventListener('keyup', (e) => { if (e.code === 'Space') setBefore(false); });
