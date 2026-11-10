@@ -28,10 +28,12 @@ function el(tag, props = {}, ...kids) {
 const icon = (d) => `<svg viewBox="0 0 24 24"><path d="${d}"/></svg>`;
 
 let toastTimer;
-function toast(msg, ms = 2600) {
+function toast(msg, ms = 2600, action) {
   const t = $('#toast');
-  t.textContent = msg; t.hidden = false;
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), ms);
+  t.replaceChildren(msg);
+  if (action) t.append(el('button', { class: 'toast-act', onclick: () => { t.hidden = true; action.run(); } }, action.label));
+  t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), action ? Math.max(ms, 5000) : ms);
 }
 
 // ---------- Rendu ----------
@@ -132,6 +134,7 @@ function paramControl(L, d) {
 const ZONE_OPTS = [['all', 'Toute l’image'], ['left', 'Gauche'], ['right', 'Droite'], ['top', 'Haut'], ['bottom', 'Bas'], ['center', 'Autour du point'], ['edges', 'Hors du point']];
 
 function renderPanel() {
+  syncSave();
   const box = $('#layers');
   box.replaceChildren();
   if (!state.layers.length) {
@@ -215,6 +218,13 @@ const LOOKS = [
   ['Rouge', [['select', { p: { col: '#ff1e0a', tol: 60 } }], ['tone', { p: { con: 15, sat: 115 } }], ['grain', { p: { amt: 30 } }]]],
   ['Sérigraphie', [['serig'], ['grain', { p: { amt: 25, col: 0 } }]]],
   ['Stroboscope', [['strobe'], ['tone', { p: { fade: 30, sat: 90 } }], ['grain', { p: { amt: 65, size: 18 } }]]],
+  ['Raster bleu', [['tone', { p: { con: 30, exp: -8 } }], ['raster', { p: { style: 'line', lines: 85, col: '#1e9bff', rel: 35, glow: 60 } }]]],
+  ['Raster rose', [['tone', { p: { con: 30 } }], ['raster', { p: { style: 'dash', lines: 150, wave: 50, gain: 75, col: '#ff3fa8', glow: 70, bg: 6 } }]]],
+  ['Points', [['tone', { p: { con: 25 } }], ['raster', { p: { style: 'dot', lines: 110, gain: 85, col: '#6ee7ff', angle: 12, glow: 45, bg: 22, rel: 15 } }]]],
+  ['CRT', [['crt'], ['chroma', { p: { amt: 22 } }], ['grain', { p: { amt: 25 } }]]],
+  ['VHS', [['vhs'], ['grain', { p: { amt: 18, col: 0 } }]]],
+  ['Archive', [['texture', { p: { type: 'dust', amt: 60 } }], ['texture', { p: { type: 'paper', amt: 45 } }], ['tone', { p: { fade: 40, sat: 70 } }]]],
+  ['Fuite de lumière', [['film35', { p: { stock: 'portra', grain: 40 } }], ['texture', { p: { type: 'leak', amt: 75, angle: -30 } }]]],
   ['Rêve acide', [['ghost', { p: { count: 2, dist: 22, angle: 172, decay: 80, mode: 'avg' } }], ['glow', { p: { thr: 30, radius: 45, int: 55 } }], ['tone', { p: { sat: 145, con: 18, temp: -10 } }], ['grain', { p: { amt: 45, size: 16 } }]]],
   ['Rideau', [['tone', { p: { sat: 0, con: 30 } }], ['motion', { p: { shutter: 7, move: 55 }, zone: 'left', zpos: 0.62, zfe: 0.01 }], ['grain', { p: { amt: 35, col: 0 } }]]],
   ['Ultraviolet', [['ghost', { p: { count: 3, dist: 0, scale: 112, decay: 85, mode: 'lighten' } }], ['gel', { p: { a: '#2a18ff', b: '#12e6a0', angle: -40, spread: 70 } }], ['glow', { p: { thr: 40, radius: 30, int: 40 } }], ['grain', { p: { amt: 25 } }]]],
@@ -224,10 +234,60 @@ const LOOKS = [
   ['Spectre', [['motion', { p: { shutter: 7, move: 45, trail: 60, flash: 45 } }], ['duotone', { p: { a: '#06191c', b: '#eafcff', con: 35 } }], ['glow', { p: { thr: 55, radius: 35, int: 45 } }], ['grain', { p: { amt: 50, size: 15, col: 0 } }]]],
   ['Balayage', [['tone', { p: { sat: 0, con: 35 } }], ['smear', { p: { len: 60, angle: 180, band: 25, irr: 90, lines: 70 } }], ['grain', { p: { amt: 50, col: 0 } }]]],
 ];
-function buildLooks() {
-  const nav = $('#looks');
+// Looks enregistrés par l'utilisateur (stockés dans ce navigateur).
+const STORE = 'wkndr-studio-looks';
+let saved = [];
+try {
+  const v = JSON.parse(localStorage.getItem(STORE) || '[]');
+  if (Array.isArray(v)) saved = v.filter((s) => s && typeof s.name === 'string' && Array.isArray(s.layers));
+} catch { saved = []; }
+function persistSaved() { try { localStorage.setItem(STORE, JSON.stringify(saved)); return true; } catch { return false; } }
+const snapshot = () => state.layers.map(({ id, ...rest }) => JSON.parse(JSON.stringify(rest)));
+const hasAssets = (L) => FX[L.fx].params.some((d) => d.type === 'image' && engine.assets.has(L.id + (d.slot || '')));
+const applySaved = (i) => applyLook(saved[i].layers.filter((l) => FX[l.fx]).map(({ fx, ...rest }) => [fx, rest]));
+
+function removeSaved(i) {
+  const [gone] = saved.splice(i, 1);
+  persistSaved(); renderLooks();
+  toast(`« ${gone.name} » supprimé`, 5000, { label: 'Annuler', run: () => { saved.splice(i, 0, gone); persistSaved(); renderLooks(); } });
+}
+function openSave() {
+  if (!state.layers.length) { toast('Ajoutez d’abord un ou plusieurs effets'); return; }
+  const box = $('#save'); box.hidden = !box.hidden;
+  $('#add').hidden = true; $('#export').hidden = true;
+  if (box.hidden) return;
+  const n = state.layers.length;
+  $('#save-count').textContent = `${n} effet${n > 1 ? 's' : ''} : ${state.layers.map((l) => FX[l.fx].name).join(', ')}`;
+  $('#save-name').value = ''; $('#save-name').placeholder = `Look ${saved.length + 1}`;
+  $('#save-note').hidden = !state.layers.some(hasAssets);
+  setTimeout(() => $('#save-name').focus(), 30);
+}
+function commitSave() {
+  const input = $('#save-name'), name = (input.value.trim() || input.placeholder).slice(0, 28);
+  const at = saved.findIndex((s) => s.name.toLowerCase() === name.toLowerCase());
+  if (at >= 0) saved.splice(at, 1);
+  saved.unshift({ name, layers: snapshot() });
+  const ok = persistSaved();
+  $('#save').hidden = true; renderLooks();
+  $('#looks').scrollTo({ left: 0, behavior: 'smooth' });
+  toast(ok ? `« ${name} » ${at >= 0 ? 'mis à jour' : 'enregistré'}` : 'Enregistrement impossible sur ce navigateur : le look reste disponible jusqu’à la fermeture', ok ? 2600 : 4500);
+}
+function syncSave() {
+  const b = $('#save-btn'); if (!b) return;
+  b.disabled = !state.layers.length;
+  b.title = state.layers.length ? 'Enregistrer cette combinaison' : 'Ajoutez un effet pour enregistrer une combinaison';
+}
+
+function renderLooks() {
+  const nav = $('#looks'); nav.replaceChildren();
+  nav.append(el('button', { class: 'icon', id: 'save-btn', 'data-act': 'save-menu', 'aria-label': 'Enregistrer cette combinaison', html: icon('M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1zM12 8v5M9.5 10.5h5') }));
   nav.append(el('button', { class: 'look reset', onclick: () => applyLook([]) }, 'Original'));
+  saved.forEach((s, i) => nav.append(el('span', { class: 'look mine' },
+    el('button', { class: 'look-main', onclick: () => applySaved(i) }, s.name),
+    el('button', { class: 'look-del', title: 'Supprimer', 'aria-label': `Supprimer ${s.name}`, html: icon('M7 7l10 10M17 7 7 17'), onclick: () => removeSaved(i) }))));
+  if (saved.length) nav.append(el('span', { class: 'look-sep' }));
   for (const [name, layers] of LOOKS) nav.append(el('button', { class: 'look', onclick: () => applyLook(layers) }, name));
+  syncSave();
 }
 function applyLook(layers) {
   state.layers = layers.map(([fx, over]) => makeLayer(fx, over));
@@ -331,14 +391,15 @@ const actions = {
   open: () => $('#file').click(),
   sample: async () => { try { const r = await fetch('exemple.jpg'); await setDocument(await createImageBitmap(await r.blob()), 'exemple'); } catch { toast('Exemple indisponible'); } },
   rotate, undo: () => travel(-1), redo: () => travel(1),
-  add: () => { $('#add').hidden = !$('#add').hidden; $('#export').hidden = true; },
-  'export-menu': () => { $('#export').hidden = !$('#export').hidden; $('#add').hidden = true; },
+  add: () => { $('#add').hidden = !$('#add').hidden; $('#export').hidden = true; $('#save').hidden = true; },
+  'save-menu': openSave,
+  'export-menu': () => { $('#export').hidden = !$('#export').hidden; $('#add').hidden = true; $('#save').hidden = true; },
   export: exportImage,
 };
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-act]');
   if (b) { actions[b.dataset.act](); return; }
-  for (const id of ['#add', '#export']) if (!e.target.closest(id)) $(id).hidden = true;
+  for (const id of ['#add', '#export', '#save']) if (!e.target.closest(id)) $(id).hidden = true;
 });
 $('#result').addEventListener('click', (e) => { if (e.target.tagName !== 'IMG') $('#result').hidden = true; });
 $('#file').addEventListener('change', (e) => { openFile(e.target.files[0]); e.target.value = ''; });
@@ -350,6 +411,7 @@ $('#file2').addEventListener('change', async (e) => {
     engine.setAsset(pickFor, bm); renderPanel(); draw();
   } catch { toast('Impossible de lire ce fichier'); }
 });
+$('#save').addEventListener('submit', (e) => { e.preventDefault(); commitSave(); });
 $('#ex-q').addEventListener('input', (e) => ($('#ex-q-out').textContent = e.target.value));
 $('#ex-type').addEventListener('change', (e) => ($('#ex-q-row').hidden = e.target.value === 'image/png'));
 
@@ -361,10 +423,10 @@ for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) cmp.addEventLis
 document.addEventListener('keydown', (e) => {
   const typing = /^(SELECT|TEXTAREA)$/.test(e.target.tagName) || (e.target.tagName === 'INPUT' && e.target.type !== 'range' && e.target.type !== 'checkbox');
   const mod = e.metaKey || e.ctrlKey;
-  if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); travel(e.shiftKey ? 1 : -1); }
+  if (mod && e.key.toLowerCase() === 'z' && !typing) { e.preventDefault(); travel(e.shiftKey ? 1 : -1); }
   else if (mod && e.key.toLowerCase() === 'o') { e.preventDefault(); actions.open(); }
   else if (mod && e.key.toLowerCase() === 'e') { e.preventDefault(); if (doc.bitmap) actions['export-menu'](); }
-  else if (e.key === 'Escape') { $('#add').hidden = true; $('#export').hidden = true; $('#result').hidden = true; }
+  else if (e.key === 'Escape') { $('#save').hidden = true; $('#add').hidden = true; $('#export').hidden = true; $('#result').hidden = true; }
   else if ((e.code === 'Space' || e.key.toLowerCase() === 'a') && !mod && !typing && !e.repeat) { e.preventDefault(); setBefore(true); }
 });
 document.addEventListener('keyup', (e) => { if (e.code === 'Space' || e.key.toLowerCase() === 'a') setBefore(false); });
@@ -381,5 +443,5 @@ if (!engine) {
   $('#empty p').textContent = 'Ce navigateur ne permet pas le rendu accéléré nécessaire au studio.';
   $('.empty-actions').remove();
 } else {
-  buildAddMenu(); buildLooks(); renderPanel(); syncButtons();
+  buildAddMenu(); renderLooks(); renderPanel(); syncButtons();
 }
