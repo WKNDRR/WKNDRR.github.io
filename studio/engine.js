@@ -68,14 +68,14 @@ void main(){ vec2 dir=vec2(cos(u_angle),sin(u_angle)); vec2 nrm=vec2(-dir.y,dir.
   c*=1.0-u_lines*0.45*moved*(hash(vec2(floor(v*900.0),5.0))-0.2);
   o=vec4(c,1.0); }`;
 
-S.ghost = `uniform float u_count,u_dist,u_angle,u_scale,u_rot,u_decay,u_mode;
+S.ghost = `uniform float u_count,u_dist,u_angle,u_scale,u_rot,u_decay,u_mode,u_tint;
 void main(){ vec2 dir=vec2(cos(u_angle),sin(u_angle)); vec3 acc=vec3(0.0); float ws=0.0;
   vec3 base=texture(u_src,v_uv).rgb; if(u_mode==1.0||u_mode==2.0) acc=vec3(0.0); if(u_mode==3.0) acc=vec3(1.0);
   for(int i=0;i<8;i++){ float k=float(i); if(k>=u_count) break;
     vec2 p=(v_uv-0.5)*u_res; p-=dir*u_dist*u_unit*k; float a=-u_rot*k; p=mat2(cos(a),-sin(a),sin(a),cos(a))*p;
     p/=pow(u_scale,k); vec2 uv=p/u_res+0.5;
     vec2 e=smoothstep(vec2(0.0),vec2(0.02),uv)*smoothstep(vec2(0.0),vec2(0.02),1.0-uv);
-    float w=pow(u_decay,k)*e.x*e.y; vec3 c=texture(u_src,uv).rgb;
+    float w=pow(u_decay,k)*e.x*e.y; vec3 c=texture(u_src,uv).rgb; vec3 tc=0.5+0.5*cos(6.2831853*(k*0.23+vec3(0.0,0.33,0.67))); c=mix(c,vec3(luma(c))*tc*1.8,u_tint*step(0.5,k));
     if(u_mode==0.0){ acc+=c*c*w; ws+=w; }
     else if(u_mode==1.0) acc=max(acc,c*w);
     else if(u_mode==2.0) acc=1.0-(1.0-acc)*(1.0-c*w);
@@ -238,6 +238,129 @@ void main(){ vec3 c=texture(u_src,v_uv).rgb; vec2 d=vec2(cos(u_angle),sin(u_angl
     vec3 s=texture(u_sharp,v_uv+d*t).rgb; float w=smoothstep(u_thr,u_thr+0.1,luma(s)); c=max(c,s*w); }
   o=vec4(c,1.0); }`;
 
+S.raster = `uniform vec3 u_col; uniform float u_angle,u_lines,u_gain,u_lo,u_wave,u_rel,u_style,u_cmode,u_bg,u_inv,u_bri;
+vec2 qToUV(vec2 q){ float ca=cos(u_angle),sa=sin(u_angle); return vec2(ca*q.x-sa*q.y,sa*q.x+ca*q.y)*u_unit/u_res+0.5; }
+vec3 smp(vec2 q){ return clamp(texture(u_src,qToUV(q)).rgb,0.0,1.0); }
+float lm(vec3 c){ float l=clamp(mix(luma(c),max(c.r,max(c.g,c.b)),0.55)+u_bri,0.0,1.0); return u_inv>0.5?1.0-l:l; }
+void main(){
+  float ca=cos(u_angle),sa=sin(u_angle);
+  vec2 p=(v_uv-0.5)*u_res/u_unit; vec2 q=vec2(ca*p.x+sa*p.y,-sa*p.x+ca*p.y);
+  float cpp=u_lines/u_unit, e=0.5/u_lines;
+  float lp=0.25*(lm(smp(q+vec2(-e,-e)))+lm(smp(q+vec2(e,-e)))+lm(smp(q+vec2(-e,e)))+lm(smp(q+vec2(e,e))));
+  float z=sin(q.x*u_lines*2.4+floor(q.y*u_lines)*1.9);
+  float shift=u_rel*2.0*(lp-0.5)+u_wave*0.45*z*(0.35+lp);
+  float yy=q.y*u_lines+shift; float cell=floor(yy); float f=yy-cell-0.5;
+  vec2 qc=vec2(q.x,(cell+0.5-shift)/u_lines);
+  vec3 sc=(smp(qc+vec2(-e,0.0))+smp(qc)*2.0+smp(qc+vec2(e,0.0)))*0.25;
+  float lc=lm(sc);
+  float t=pow(clamp((lc-u_lo)/max(1.0-u_lo,0.05),0.0,1.0),0.8);
+  float w=t*0.5*u_gain, aa=cpp*0.8, cov;
+  if(u_style<0.5) cov=1.0-smoothstep(w-aa,w+aa,abs(f));
+  else if(u_style<1.5){ float fa=fract(q.x*u_lines*0.5)-0.5; cov=(1.0-smoothstep(w-aa,w+aa,abs(f)))*(1.0-smoothstep(0.34-aa,0.34+aa,abs(fa))); }
+  else { float fa=fract(q.x*u_lines+0.5*mod(cell,2.0))-0.5; cov=1.0-smoothstep(w-aa,w+aa,length(vec2(fa,f))); }
+  cov*=smoothstep(0.0,aa*1.5,w);
+  float core=pow(clamp(1.0-abs(f)/max(w,0.02),0.0,1.0),1.5);
+  vec3 base=u_cmode<0.5?u_col:clamp(sc/max(max(sc.r,max(sc.g,sc.b)),0.06),0.0,1.0);
+  vec3 line=cov*(base*(0.55+0.75*t)+vec3(0.6)*core*core);
+  vec2 g=vec2(fract(q.x*u_lines)-0.5,fract(q.y*u_lines)-0.5);
+  vec3 bg=u_col*u_bg*(0.05+0.22*(1.0-smoothstep(0.1,0.24,length(g))));
+  o=vec4(bg+line,1.0); }`;
+
+S.crt = `uniform float u_vert,u_lines,u_str,u_mask,u_curv,u_roll,u_rpos,u_vig;
+void main(){
+  vec2 c=v_uv*2.0-1.0; c*=1.0+u_curv*0.2*vec2(c.y*c.y,c.x*c.x); vec2 uv=c*0.5+0.5;
+  vec2 ed=smoothstep(vec2(0.0),vec2(0.006),uv)*smoothstep(vec2(0.0),vec2(0.006),1.0-uv);
+  vec3 s=clamp(texture(u_src,clamp(uv,0.0,1.0)).rgb,0.0,1.0); float lum=luma(s);
+  float coord=u_vert>0.5?uv.x*u_res.x:uv.y*u_res.y; float period=max(2.0,u_unit/u_lines);
+  float beam=0.5+0.5*cos(6.2831853*coord/period);
+  float scan=mix(1.0,pow(beam,mix(1.8,0.55,lum)),u_str);
+  float sub=max(1.0,u_unit/(u_lines*1.5)); float xs=(u_vert>0.5?uv.y*u_res.y:uv.x*u_res.x)/sub;
+  vec3 m=pow(0.5+0.5*cos(6.2831853*(xs/3.0-vec3(0.0,0.3333,0.6667))),vec3(1.4))*2.2;
+  s*=mix(vec3(1.0),m,u_mask);
+  s*=scan*(1.0+0.5*u_str)*(1.0+0.25*u_mask);
+  float bar=exp(-pow((uv.y-u_rpos)/0.07,2.0)); s*=1.0+u_roll*0.8*bar-u_roll*0.1;
+  s*=vig(uv,u_vig)*ed.x*ed.y;
+  o=vec4(s,1.0); }`;
+
+S.vhs = `uniform float u_chroma,u_soft,u_jit,u_tear,u_noise,u_drop,u_fade,u_sat,u_seed,u_ring;
+vec3 toYuv(vec3 c){ return vec3(dot(c,vec3(0.299,0.587,0.114)),dot(c,vec3(-0.147,-0.289,0.436)),dot(c,vec3(0.615,-0.515,-0.100))); }
+vec3 toRgb(float y,vec2 uv){ return vec3(y+1.140*uv.y,y-0.395*uv.x-0.581*uv.y,y+2.032*uv.x); }
+void main(){
+  vec2 px=v_uv*u_res; float lineH=max(1.0,u_unit/640.0); float ry=floor(px.y/lineH); float t=u_seed; float k=u_unit/u_res.x;
+  float j=(hash(vec2(ry,t))-0.5)*0.004*u_jit+sin(ry*0.045+t*2.1)*0.0016*u_jit+sin(ry*0.011+t)*0.0025*u_jit;
+  float tear=smoothstep(0.93,1.0,v_uv.y);
+  j+=tear*u_tear*(0.05*(hash(vec2(ry,t+9.0))-0.3)+0.02*sin(v_uv.y*90.0));
+  float bp=fract(0.27+t*0.137); float band=1.0-smoothstep(0.0,0.03,abs(v_uv.y-bp));
+  j+=band*u_tear*0.045*(hash(vec2(ry,t+3.0))-0.4);
+  vec2 uv0=vec2(v_uv.x+j,(ry+0.5)*lineH/u_res.y);
+  float dx=(0.0016+0.0016*u_soft)*k;
+  float y0=toYuv(texture(u_src,uv0).rgb).x;
+  float yl=0.25*toYuv(texture(u_src,uv0-vec2(dx,0.0)).rgb).x+0.5*y0+0.25*toYuv(texture(u_src,uv0+vec2(dx,0.0)).rgb).x;
+  float gh=toYuv(texture(u_src,uv0-vec2(dx*7.0,0.0)).rgb).x;
+  float Y=y0+u_ring*1.6*(y0-yl)+u_ring*0.14*(gh-y0);
+  float cs=u_chroma*0.007*k, dxc=dx*(1.5+u_soft*3.5); vec2 cc=vec2(0.0);
+  for(int i=0;i<8;i++){ float kk=float(i)-3.5; cc+=toYuv(texture(u_src,vec2(uv0.x+cs+kk*dxc,uv0.y)).rgb).yz; }
+  cc/=8.0;
+  vec3 col=toRgb(Y,cc*u_sat);
+  float n=(vn(vec2(px.x/(lineH*7.0),ry*0.8),t*3.0)-0.5)+(hash(vec2(floor(px.x/max(1.0,lineH*0.8)),ry+t*131.0))-0.5)*0.6;
+  col+=n*u_noise*0.25;
+  col+=tear*u_tear*(hash(vec2(floor(px.x*0.5),ry+t*17.0))-0.35)*0.45;
+  if(hash(vec2(ry,t+17.0))>1.0-u_drop*0.015){ float seg=vn(vec2(px.x/(u_unit*0.05),ry),t*5.0); col+=smoothstep(0.55,0.8,seg)*0.7; }
+  col=col*(1.0-u_fade*0.2)+u_fade*vec3(0.07,0.06,0.085);
+  col*=1.0-0.05*mod(ry,2.0);
+  o=vec4(col,1.0); }`;
+
+S.texture = `uniform float u_type,u_amt,u_scale,u_angle,u_seed; uniform vec3 u_col;
+float fbm(vec2 p,float s){ return (0.5*vn(p,s)+0.25*vn(p*2.03,s+1.0)+0.125*vn(p*4.1,s+2.0)+0.0625*vn(p*8.3,s+3.0))/0.9375; }
+void main(){
+  vec2 p=(v_uv-0.5)*u_res/u_unit; float px=1.0/u_unit; float a=u_amt, s=u_scale, sd=u_seed;
+  vec3 c=texture(u_src,v_uv).rgb;
+  if(u_type<0.5){
+    float F=70.0*s, e=0.35/F; float h=fbm(p*F,sd);
+    float lt=(h-fbm((p+vec2(e,0.0))*F,sd))+(h-fbm((p+vec2(0.0,e))*F,sd));
+    float fib=vn(vec2(p.x*260.0*s,p.y*34.0*s),sd+5.0)*vn(vec2(p.y*260.0*s,p.x*34.0*s),sd+6.0);
+    c*=1.0+a*(lt*0.9+(fib-0.25)*0.3-0.03);
+    c=mix(c,c*vec3(1.03,1.0,0.93),a*0.6);
+    c+=(hash(floor(v_uv*u_res/max(1.0,u_unit/2200.0)))-0.5)*a*0.05;
+  } else if(u_type<1.5){
+    float cs=1.0/(38.0*s); vec2 g=p/cs; vec2 id=floor(g); vec2 f=fract(g); vec2 sid=id+vec2(sd*13.0,sd*7.0);
+    if(hash(sid)<a*0.22){
+      vec2 ctr=vec2(hash(sid+vec2(37.0,11.0)),hash(sid+vec2(71.0,53.0)))*0.5+0.25; float h3=hash(sid+vec2(23.0,89.0));
+      float rr=0.0006+0.0035*h3*h3*h3; float d=length(f-ctr)*cs; float spk=1.0-smoothstep(rr-px,rr+px,d);
+      c=mix(c,vec3(hash(sid+vec2(5.0,3.0))>0.45?0.95:0.03),spk*0.9); }
+    float sc=60.0*s; float cx=p.x*sc; float sx=floor(cx); vec2 si=vec2(sx+sd*29.0,3.0);
+    if(hash(si)<a*0.1){
+      float lp=(hash(si+vec2(0.0,5.0))-0.5)*0.7; float wd=0.0005+0.0007*hash(si+vec2(0.0,9.0)); float d=abs(fract(cx)-0.5-lp)/sc;
+      float seg=smoothstep(0.55,0.7,vn(vec2(p.y*(2.0+3.0*hash(si+vec2(0.0,13.0))),sx),sd));
+      c=mix(c,vec3(0.93),(1.0-smoothstep(wd-px,wd+px,d))*seg*0.8); }
+  } else if(u_type<2.5){
+    vec2 dir=vec2(cos(u_angle),sin(u_angle)); float d=dot(v_uv-0.5,dir)+0.5;
+    float start=mix(0.92,0.05,clamp(s/2.6,0.0,1.0));
+    float lk=smoothstep(start,1.04,d); lk*=0.55+0.9*fbm(p*2.6+sd,sd);
+    vec2 bc=vec2(hash(vec2(sd,1.0)),hash(vec2(sd,2.0)))-0.5; vec2 bq=v_uv-0.5-bc;
+    lk=clamp(lk+exp(-dot(bq,bq)*(6.0/s))*0.3,0.0,1.4);
+    vec3 lc=mix(u_col,vec3(1.0,0.9,0.55),clamp(lk*lk,0.0,1.0)*0.8);
+    c=1.0-(1.0-c)*(1.0-clamp(lk*lc*a*1.3,0.0,1.0));
+  } else if(u_type<3.5){
+    float shade=0.0, crack=0.0; float w=0.05*s;
+    for(int i=0;i<3;i++){ float fi=float(i); float an=hash(vec2(fi+sd*5.0,1.0))*3.14159; vec2 n=vec2(cos(an),sin(an));
+      float off=(hash(vec2(fi+sd*5.0,2.0))-0.5)*0.9; float dd=dot(p,n)-off+(fbm(p*5.0+fi*9.0,sd)-0.5)*0.012;
+      float on=step(hash(vec2(fi+sd*5.0,4.0)),0.35+0.65*a);
+      shade+=on*sign(dd)*exp(-abs(dd)/w); crack+=on*(1.0-smoothstep(px*0.8,px*2.4,abs(dd))); }
+    c*=1.0+a*0.3*shade; c=mix(c,vec3(0.96),clamp(crack,0.0,1.0)*a*0.4);
+  } else if(u_type<4.5){
+    vec2 wv=p*190.0*s; float chk=mod(floor(wv.x)+floor(wv.y),2.0);
+    float hx=1.0-pow(abs(fract(wv.x)-0.5)*2.0,2.0), hy=1.0-pow(abs(fract(wv.y)-0.5)*2.0,2.0); float h=mix(hx,hy,chk);
+    float slub=vn(vec2(wv.x*0.9,wv.y*0.06),sd)*0.5+vn(vec2(wv.x*0.06,wv.y*0.9),sd+3.0)*0.5;
+    c*=1.0+a*(0.7*(h-0.6)+0.5*(slub-0.5));
+  } else {
+    vec2 dir=vec2(cos(u_angle),sin(u_angle)); float fr=50.0*s; float f=fract(dot(p,dir)*fr); float off=f-0.5;
+    vec2 dl=dir*off*a*1.5/fr*u_unit/u_res;
+    c=vec3(texture(u_src,v_uv+dl*1.12).r,texture(u_src,v_uv+dl).g,texture(u_src,v_uv+dl*0.88).b);
+    c*=1.0-a*0.3*pow(abs(off)*2.0,6.0); c*=1.0+(0.5-f)*0.1*a;
+  }
+  o=vec4(max(c,0.0),1.0); }`;
+
 const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
 const rad = (d) => (d * Math.PI) / 180;
 
@@ -265,6 +388,20 @@ const STOCKS = {
 const R = (k, label, min, max, def, extra = {}) => ({ k, label, type: 'range', min, max, step: 1, def, ...extra });
 const deg = (v) => `${v}°`;
 const pct = (v) => `${v}`;
+
+// Halo lumineux serré + large, additionné à l'image (prend possession de inp).
+function bloom(E, inp, amt, thr = 0.25) {
+  const br = E.target(Math.ceil(inp.w / 2), Math.ceil(inp.h / 2));
+  E.draw('bright', br, { u_src: inp, u_thr: thr, u_px: 2 });
+  const big = Math.max(br.w, br.h), b1 = E.blur(br, 0.004 * big), b2 = E.blur(br, 0.02 * big);
+  E.release(br);
+  const g1 = E.pass('glowmix', inp, { u_glow: b1, u_int: amt * 0.9, u_tint: [1, 1, 1] });
+  const g2 = E.pass('glowmix', g1, { u_glow: b2, u_int: amt * 1.3, u_tint: [1, 1, 1] });
+  E.release(b1); E.release(b2); E.release(g1); E.release(inp);
+  return g2;
+}
+
+const TEX = ['paper', 'dust', 'leak', 'fold', 'canvas', 'glass'];
 
 // Étalonnage pellicule partagé : halation, courbe, teintes, vignettage, grain, bordure.
 function filmGrade(E, cur, st, o) {
@@ -354,9 +491,10 @@ export const FX = {
       R('scale', 'Échelle', 80, 125, 100, { fmt: (v) => `${v}%` }),
       R('rot', 'Rotation', -30, 30, 0, { fmt: deg }),
       R('decay', 'Persistance', 10, 100, 75, { fmt: pct }),
+      R('tint', 'Teinte des copies', 0, 100, 0, { fmt: pct }),
       { k: 'mode', label: 'Fusion', type: 'select', def: 'avg', options: [['avg', 'Moyenne'], ['lighten', 'Éclaircir'], ['screen', 'Écran'], ['darken', 'Assombrir']] },
     ],
-    render: (E, inp, p) => E.pass('ghost', inp, { u_count: p.count, u_dist: (p.dist / 100) * 0.3, u_angle: rad(p.angle), u_scale: p.scale / 100, u_rot: rad(p.rot), u_decay: p.decay / 100, u_mode: ['avg', 'lighten', 'screen', 'darken'].indexOf(p.mode) }),
+    render: (E, inp, p) => E.pass('ghost', inp, { u_count: p.count, u_dist: (p.dist / 100) * 0.3, u_angle: rad(p.angle), u_scale: p.scale / 100, u_rot: rad(p.rot), u_decay: p.decay / 100, u_tint: p.tint / 100, u_mode: ['avg', 'lighten', 'screen', 'darken'].indexOf(p.mode) }),
   },
   zoom: {
     name: 'Zoom & rotation', group: 'Mouvement', hint: 'Flou radial autour d’un point', point: true,
@@ -608,6 +746,62 @@ export const FX = {
     ],
     render: (E, inp, p) => E.pass('gel', inp, { u_a: hex(p.a), u_b: hex(p.b), u_mode: ['light', 'soft', 'screen', 'multiply', 'overlay'].indexOf(p.mode), u_int: p.int / 100, u_angle: rad(p.angle), u_spread: p.spread / 100, u_pos: p.pos / 100 }),
   },
+  raster: {
+    name: 'Raster lumineux', group: 'Écran', hint: 'Photo tracée en lignes, tirets ou points de phosphore',
+    params: [
+      { k: 'style', label: 'Tracé', type: 'select', def: 'line', options: [['line', 'Lignes'], ['dash', 'Tirets'], ['dot', 'Points']] },
+      R('lines', 'Densité', 20, 220, 90, { fmt: String }),
+      R('angle', 'Angle', -90, 90, 0, { fmt: deg }),
+      R('gain', 'Épaisseur', 10, 100, 70, { fmt: pct }),
+      R('bri', 'Luminosité', -50, 50, 0, { fmt: pct }),
+      R('lo', 'Seuil du noir', 0, 80, 12, { fmt: pct }),
+      R('rel', 'Relief', 0, 100, 30, { fmt: pct }),
+      R('wave', 'Ondulation', 0, 100, 0, { fmt: pct }),
+      { k: 'cmode', label: 'Couleur', type: 'select', def: 'mono', options: [['mono', 'Phosphore'], ['src', 'Couleurs d’origine']] },
+      { k: 'col', label: 'Teinte du phosphore', type: 'color', def: '#1fa7ff', when: (p) => p.cmode === 'mono' },
+      R('bg', 'Fond', 0, 100, 12, { fmt: pct }),
+      R('glow', 'Halo', 0, 100, 60, { fmt: pct }),
+      { k: 'inv', label: 'Inverser', type: 'toggle', def: false },
+    ],
+    render(E, inp, p) {
+      const out = E.pass('raster', inp, { u_col: hex(p.col), u_angle: rad(p.angle), u_lines: p.lines, u_gain: p.gain / 100, u_lo: p.lo / 100, u_rel: p.rel / 100, u_wave: p.wave / 100, u_style: ['line', 'dash', 'dot'].indexOf(p.style), u_cmode: p.cmode === 'mono' ? 0 : 1, u_bg: p.bg / 100, u_inv: p.inv ? 1 : 0, u_bri: p.bri / 100 });
+      return p.glow > 0 ? bloom(E, out, p.glow / 100, 0.2) : out;
+    },
+  },
+  crt: {
+    name: 'Scanlines', group: 'Écran', hint: 'Écran cathodique : lignes, masque RVB, courbure',
+    params: [
+      { k: 'dir', label: 'Sens', type: 'select', def: 'h', options: [['h', 'Horizontales'], ['v', 'Verticales']] },
+      R('lines', 'Lignes', 100, 900, 420, { fmt: String }),
+      R('str', 'Intensité', 0, 100, 65, { fmt: pct }),
+      R('mask', 'Masque RVB', 0, 100, 35, { fmt: pct }),
+      R('curv', 'Courbure', 0, 100, 25, { fmt: pct }),
+      R('roll', 'Barre de balayage', 0, 100, 0, { fmt: pct }),
+      R('rpos', 'Position de la barre', 0, 100, 40, { fmt: pct, when: (p) => p.roll > 0 }),
+      R('vig', 'Vignettage', 0, 100, 30, { fmt: pct }),
+      R('glow', 'Halo', 0, 100, 35, { fmt: pct }),
+    ],
+    render(E, inp, p) {
+      const out = E.pass('crt', inp, { u_vert: p.dir === 'v' ? 1 : 0, u_lines: p.lines, u_str: p.str / 100, u_mask: p.mask / 100, u_curv: p.curv / 100, u_roll: p.roll / 100, u_rpos: p.rpos / 100, u_vig: (p.vig / 100) * 0.8 });
+      return p.glow > 0 ? bloom(E, out, p.glow / 100, 0.35) : out;
+    },
+  },
+  vhs: {
+    name: 'VHS', group: 'Écran', hint: 'Bande magnétique : bavure, bruit, instabilité',
+    params: [
+      R('chroma', 'Décalage des couleurs', 0, 100, 45, { fmt: pct }),
+      R('soft', 'Bavure', 0, 100, 40, { fmt: pct }),
+      R('ring', 'Contours', 0, 100, 35, { fmt: pct }),
+      R('jit', 'Instabilité', 0, 100, 35, { fmt: pct }),
+      R('tear', 'Bande de défilement', 0, 100, 50, { fmt: pct }),
+      R('noise', 'Bruit', 0, 100, 35, { fmt: pct }),
+      R('drop', 'Traînées blanches', 0, 100, 15, { fmt: pct }),
+      R('fade', 'Noirs délavés', 0, 100, 35, { fmt: pct }),
+      R('sat', 'Saturation', 0, 200, 95, { fmt: pct }),
+      R('seed', 'Variante', 1, 20, 1),
+    ],
+    render: (E, inp, p) => E.pass('vhs', inp, { u_chroma: p.chroma / 100, u_soft: p.soft / 100, u_ring: p.ring / 100, u_jit: p.jit / 100, u_tear: p.tear / 100, u_noise: p.noise / 100, u_drop: p.drop / 100, u_fade: p.fade / 100, u_sat: p.sat / 100, u_seed: p.seed }),
+  },
   double: {
     name: 'Double exposition', group: 'Matière', hint: 'Superposer une seconde image',
     params: [
@@ -625,6 +819,18 @@ export const FX = {
       if (!img) return inp;
       return E.pass('double', inp, { u_img: img, u_ia: img.w / img.h, u_scale: p.scale / 100, u_off: [p.x / 200, p.y / 200], u_flipx: p.flip ? 1 : 0, u_mode: ['screen', 'lighten', 'multiply', 'overlay', 'normal'].indexOf(p.mode), u_int: p.int / 100 * (p.mode === 'normal' ? 2 : 1), u_desat: p.desat / 100 });
     },
+  },
+  texture: {
+    name: 'Texture', group: 'Matière', hint: 'Papier, poussière, fuite de lumière, plis, toile, verre cannelé',
+    params: [
+      { k: 'type', label: 'Type', type: 'select', def: 'paper', options: [['paper', 'Papier'], ['dust', 'Poussière & rayures'], ['leak', 'Fuite de lumière'], ['fold', 'Plis'], ['canvas', 'Toile'], ['glass', 'Verre cannelé']] },
+      R('amt', 'Intensité', 0, 100, 55, { fmt: pct }),
+      R('scale', 'Échelle', 30, 300, 100, { fmt: (v) => `${v}%` }),
+      R('angle', 'Angle', -180, 180, 0, { fmt: deg, when: (p) => p.type === 'leak' || p.type === 'glass' }),
+      { k: 'col', label: 'Couleur', type: 'color', def: '#ff6a1a', when: (p) => p.type === 'leak' },
+      R('seed', 'Variante', 1, 20, 1),
+    ],
+    render: (E, inp, p) => E.pass('texture', inp, { u_type: TEX.indexOf(p.type), u_amt: p.amt / 100, u_scale: p.scale / 100, u_angle: rad(p.angle), u_seed: p.seed, u_col: hex(p.col) }),
   },
   grain: {
     name: 'Grain', group: 'Matière', hint: 'Grain argentique',

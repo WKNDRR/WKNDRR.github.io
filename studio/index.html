@@ -69,6 +69,14 @@
 
   <div id="result" hidden><img alt="Image exportée"><p class="glass">Clic droit ou appui long sur l’image pour l’enregistrer · cliquez à côté pour fermer</p></div>
 
+  <form id="save" class="glass popover" hidden autocomplete="off">
+    <div class="save-title">Enregistrer ce look</div>
+    <p class="save-sub" id="save-count"></p>
+    <input id="save-name" type="text" maxlength="28" placeholder="Look 1" aria-label="Nom du look" enterkeyhint="done">
+    <p class="save-note" id="save-note" hidden>Les images ajoutées (double exposition, volets) ne sont pas conservées.</p>
+    <button class="btn primary wide" type="submit">Enregistrer</button>
+  </form>
+
   <div id="toast" class="glass" hidden></div>
   <input type="file" id="file" accept="image/*,.cr2,.cr3,.nef,.arw,.dng,.raf,.orf,.rw2,.pef,.srw" hidden>
   <input type="file" id="file2" accept="image/*" hidden>
