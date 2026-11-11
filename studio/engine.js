@@ -113,20 +113,9 @@ void main(){ vec2 d=u_px/u_res*0.25; vec3 c=max(max(texture(u_src,v_uv+d*vec2(-1
     max(texture(u_src,v_uv+d*vec2(-1,1)).rgb,texture(u_src,v_uv+d*vec2(1,1)).rgb));
   float l=mix(max(c.r,max(c.g,c.b)),luma(c),u_luma); float k=smoothstep(u_thr,min(u_thr+0.12,1.0)+0.001,l); o=vec4(c*k,1.0); }`;
 
-S.isolate = `uniform sampler2D u_wide; uniform float u_keep;
-void main(){ vec3 c=texture(u_src,v_uv).rgb; vec3 w=texture(u_wide,v_uv).rgb; float a=max(w.r,max(w.g,w.b));
-  o=vec4(c*mix(1.0,1.0-smoothstep(0.03,0.16,a),u_keep),1.0); }`;
-
 S.glowmix = `uniform sampler2D u_glow; uniform float u_int; uniform vec3 u_tint;
 void main(){ vec3 c=texture(u_src,v_uv).rgb; vec3 g=texture(u_glow,v_uv).rgb*u_tint*u_int;
   o=vec4(1.0-(1.0-c)*(1.0-clamp(g,0.0,1.0)),1.0); }`;
-
-S.streak = `uniform vec2 u_dir; uniform float u_step,u_att;
-void main(){ vec3 acc=vec3(0.0); for(int i=0;i<4;i++){ float s=float(i);
-    acc+=pow(u_att,s)*texture(u_src,v_uv+u_dir*u_step*s/u_res).rgb; } o=vec4(acc,1.0); }`;
-S.starmix = `uniform sampler2D u_star; uniform float u_int; uniform vec3 u_tint;
-void main(){ vec3 c=texture(u_src,v_uv).rgb; vec3 s=texture(u_star,v_uv).rgb*u_int*u_tint;
-  s=s/(1.0+s*0.35); o=vec4(c+s*(1.0-c*0.5),1.0); }`;
 
 S.chroma = `uniform float u_amt,u_type,u_angle;
 void main(){ vec2 d; if(u_type==0.0) d=(v_uv-0.5)*u_amt*2.0; else d=vec2(cos(u_angle),sin(u_angle))*u_amt*u_unit/u_res;
@@ -353,13 +342,50 @@ void main(){
     float hx=1.0-pow(abs(fract(wv.x)-0.5)*2.0,2.0), hy=1.0-pow(abs(fract(wv.y)-0.5)*2.0,2.0); float h=mix(hx,hy,chk);
     float slub=vn(vec2(wv.x*0.9,wv.y*0.06),sd)*0.5+vn(vec2(wv.x*0.06,wv.y*0.9),sd+3.0)*0.5;
     c*=1.0+a*(0.7*(h-0.6)+0.5*(slub-0.5));
-  } else {
+  } else if(u_type<5.5){
     vec2 dir=vec2(cos(u_angle),sin(u_angle)); float fr=50.0*s; float f=fract(dot(p,dir)*fr); float off=f-0.5;
     vec2 dl=dir*off*a*1.5/fr*u_unit/u_res;
     c=vec3(texture(u_src,v_uv+dl*1.12).r,texture(u_src,v_uv+dl).g,texture(u_src,v_uv+dl*0.88).b);
     c*=1.0-a*0.3*pow(abs(off)*2.0,6.0); c*=1.0+(0.5-f)*0.1*a;
+  } else {
+    float cx=p.x*95.0*s, id=floor(cx); vec2 si=vec2(id+sd*31.0,7.0); float hh=hash(si+vec2(1.0,0.0));
+    if(hash(si)<a*0.26){
+      float xo=(hash(si+vec2(2.0,0.0))-0.5)*0.7+(vn(vec2(p.y*2.5,id),sd)-0.5)*0.35;
+      float wd=(0.0004+0.0011*hh)/s; float d=abs(fract(cx)-0.5-xo)/(95.0*s);
+      float seg=smoothstep(0.3,0.5,vn(vec2(p.y*(0.9+2.2*hh),id*1.7),sd+9.0));
+      c=mix(c,vec3(0.94),(1.0-smoothstep(wd-px,wd+px,d))*seg*0.85); }
+    float bx=p.x*8.0*s, bid=floor(bx); vec2 bi=vec2(bid+sd*17.0,5.0);
+    if(hash(bi)<a*0.45){
+      float xo=(hash(bi+vec2(1.0,0.0))-0.5)*0.6+(vn(vec2(p.y*1.4,bid),sd+4.0)-0.5)*0.3; float d=abs(fract(bx)-0.5-xo)/(8.0*s);
+      float seg=smoothstep(0.2,0.42,vn(vec2(p.y*0.8,bid*2.3),sd+2.0));
+      c=mix(c,vec3(0.97),(1.0-smoothstep(0.0012-px,0.0012+px,d))*seg*0.8); }
+    float cs=1.0/(110.0*s); vec2 g=p/cs; vec2 gid=floor(g)+vec2(sd*13.0,sd*7.0);
+    if(hash(gid)<a*0.1){ vec2 ctr=vec2(hash(gid+vec2(37.0,11.0)),hash(gid+vec2(71.0,53.0)))*0.5+0.25; float h3=hash(gid+vec2(23.0,89.0));
+      float rr=0.0004+0.0018*h3*h3; float dd=length(fract(g)-ctr)*cs; c=mix(c,vec3(hash(gid+vec2(5.0,3.0))>0.3?0.95:0.03),(1.0-smoothstep(rr-px,rr+px,dd))*0.85); }
   }
   o=vec4(max(c,0.0),1.0); }`;
+
+S.glitch = `uniform float u_n,u_amt,u_prob,u_soft,u_chroma,u_seed,u_vert;
+void main(){
+  float coord=u_vert>0.5?v_uv.x:v_uv.y;
+  float b=floor(coord*u_n), b2=floor(coord*u_n*0.3);
+  float a1=step(1.0-u_prob,hash(vec2(b,u_seed+7.0))), a2=step(1.0-u_prob*0.6,hash(vec2(b2,u_seed+11.0)));
+  float shift=(hash(vec2(b,u_seed+3.0))-0.5)*2.0*u_amt*a1+(hash(vec2(b2,u_seed+13.0))-0.5)*2.0*u_amt*1.5*a2;
+  vec2 cd=u_vert>0.5?vec2(0.0,1.0):vec2(1.0,0.0); vec2 d=cd*shift; float act=step(0.0001,abs(shift));
+  vec3 acc=vec3(0.0);
+  for(int i=0;i<10;i++){ float t=float(i)/9.0; vec2 uv=v_uv-d*(1.0-u_soft*t); vec2 ch=cd*u_chroma*0.012*act;
+    acc+=vec3(texture(u_src,uv+ch).r,texture(u_src,uv).g,texture(u_src,uv-ch).b); }
+  o=vec4(acc/10.0,1.0); }`;
+
+S.thermal = `uniform float u_pal,u_steps,u_dither,u_con,u_mix,u_shift;
+vec3 pal(float t){
+  if(u_pal<0.5) return 0.5+0.5*cos(6.2831853*(t+vec3(0.0,0.33,0.67)));
+  if(u_pal<1.5) return 0.5+0.5*cos(6.2831853*(t*vec3(1.0,1.0,0.5)+vec3(0.8,0.9,0.3)));
+  return vec3(smoothstep(0.1,0.55,t),smoothstep(0.45,0.9,t)*0.9,mix(0.5*smoothstep(0.0,0.3,t)*(1.0-smoothstep(0.3,0.6,t)),1.0,smoothstep(0.85,1.0,t))); }
+void main(){ vec3 c=clamp(texture(u_src,v_uv).rgb,0.0,1.0); float l=clamp((luma(c)-0.5)*(1.0+u_con)+0.5,0.0,1.0);
+  if(u_steps<32.5){ float n=u_steps; l=floor(clamp(l+(ign(gl_FragCoord.xy)-0.5)*u_dither/n,0.0,0.999)*n)/(n-1.0); }
+  vec3 g=pal(u_pal>1.5?l:l*0.85+u_shift);
+  o=vec4(mix(c,g,u_mix),1.0); }`;
 
 const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
 const rad = (d) => (d * Math.PI) / 180;
@@ -401,7 +427,7 @@ function bloom(E, inp, amt, thr = 0.25) {
   return g2;
 }
 
-const TEX = ['paper', 'dust', 'leak', 'fold', 'canvas', 'glass'];
+const TEX = ['paper', 'dust', 'leak', 'fold', 'canvas', 'glass', 'scratch'];
 
 // Étalonnage pellicule partagé : halation, courbe, teintes, vignettage, grain, bordure.
 function filmGrade(E, cur, st, o) {
@@ -516,43 +542,6 @@ export const FX = {
       R('rot', 'Rotation', -180, 180, 0, { fmt: deg }),
     ],
     render: (E, inp, p, L) => E.pass('prism', inp, { u_facets: p.facets, u_amount: (p.amount / 100) * 0.3, u_core: p.core / 100, u_soft: p.soft / 100, u_disp: (p.disp / 100) * 0.25, u_rot: rad(p.rot), u_type: p.type === 'radial' ? 0 : 1, u_pt: L.pt }),
-  },
-  star: {
-    name: 'Filtre étoile', group: 'Optique', hint: 'Éclats sur les hautes lumières',
-    params: [
-      R('points', 'Branches', 4, 12, 6, { step: 2 }),
-      R('len', 'Longueur', 0, 100, 45, { fmt: pct }),
-      R('thr', 'Seuil', 30, 99, 85, { fmt: pct }),
-      R('int', 'Intensité', 0, 100, 45, { fmt: pct }),
-      R('rot', 'Rotation', 0, 90, 15, { fmt: deg }),
-      R('small', 'Points lumineux seuls', 0, 100, 85, { fmt: pct }),
-      { k: 'tint', label: 'Teinte', type: 'color', def: '#ffffff' },
-    ],
-    render(E, inp, p) {
-      const s = Math.min(1, 1400 / Math.max(inp.w, inp.h));
-      const w = Math.max(2, Math.round(inp.w * s)), h = Math.max(2, Math.round(inp.h * s));
-      const raw = E.target(w, h);
-      E.draw('bright', raw, { u_src: inp, u_thr: p.thr / 100, u_px: 1 / s, u_luma: 1 });
-      const wide = E.blur(raw, 0.02 * Math.max(w, h));
-      const br = E.pass('isolate', raw, { u_wide: wide, u_keep: p.small / 100 });
-      E.release(raw); E.release(wide);
-      const acc = E.target(w, h); E.clear(acc);
-      const lenPx = (p.len / 100) * 0.3 * Math.max(w, h) + 1, att = Math.pow(0.01, 1 / 256);
-      for (let i = 0; i < p.points; i++) {
-        const ang = rad(p.rot) + (i * 2 * Math.PI) / p.points;
-        let a = br;
-        for (let k = 0; k < 4; k++) {
-          const t = E.target(w, h), b = 4 ** k;
-          E.draw('streak', t, { u_src: a, u_dir: [Math.cos(ang), Math.sin(ang)], u_step: (lenPx / 256) * b, u_att: Math.pow(att, b) });
-          if (a !== br) E.release(a);
-          a = t;
-        }
-        E.draw('copy', acc, { u_src: a }, true); E.release(a);
-      }
-      const out = E.pass('starmix', inp, { u_star: acc, u_int: (p.int / 100) * 0.5, u_tint: hex(p.tint) });
-      E.release(br); E.release(acc);
-      return out;
-    },
   },
   glow: {
     name: 'Halo & diffusion', group: 'Optique', hint: 'Lueur douce, filtre brume',
@@ -802,6 +791,31 @@ export const FX = {
     ],
     render: (E, inp, p) => E.pass('vhs', inp, { u_chroma: p.chroma / 100, u_soft: p.soft / 100, u_ring: p.ring / 100, u_jit: p.jit / 100, u_tear: p.tear / 100, u_noise: p.noise / 100, u_drop: p.drop / 100, u_fade: p.fade / 100, u_sat: p.sat / 100, u_seed: p.seed }),
   },
+  glitch: {
+    name: 'Glitch', group: 'Écran', hint: 'Tranches décalées avec traînée',
+    params: [
+      { k: 'dir', label: 'Sens', type: 'select', def: 'h', options: [['h', 'Horizontal'], ['v', 'Vertical']] },
+      R('n', 'Tranches', 4, 90, 24, { fmt: String }),
+      R('amt', 'Décalage', 0, 100, 35, { fmt: pct }),
+      R('prob', 'Densité', 5, 100, 45, { fmt: pct }),
+      R('soft', 'Traînée', 0, 100, 40, { fmt: pct }),
+      R('chroma', 'Séparation RVB', 0, 100, 25, { fmt: pct }),
+      R('seed', 'Variante', 1, 20, 1),
+    ],
+    render: (E, inp, p) => E.pass('glitch', inp, { u_vert: p.dir === 'v' ? 1 : 0, u_n: p.n, u_amt: (p.amt / 100) * 0.25, u_prob: p.prob / 100, u_soft: p.soft / 100, u_chroma: p.chroma / 100, u_seed: p.seed }),
+  },
+  thermal: {
+    name: 'Fausses couleurs', group: 'Couleur', hint: 'Palette par niveaux de lumière, façon thermique',
+    params: [
+      { k: 'pal', label: 'Palette', type: 'select', def: 'rainbow', options: [['rainbow', 'Arc-en-ciel'], ['aurora', 'Aurore'], ['fire', 'Thermique']] },
+      R('steps', 'Paliers', 2, 33, 9, { fmt: (v) => (v > 32 ? 'Continu' : String(v)) }),
+      R('dither', 'Tramage', 0, 100, 60, { fmt: pct }),
+      R('con', 'Contraste', -50, 100, 20, { fmt: pct }),
+      R('shift', 'Décalage de palette', 0, 100, 0, { fmt: pct, when: (p) => p.pal !== 'fire' }),
+      R('mix', 'Intensité', 0, 100, 85, { fmt: pct }),
+    ],
+    render: (E, inp, p) => E.pass('thermal', inp, { u_pal: ['rainbow', 'aurora', 'fire'].indexOf(p.pal), u_steps: p.steps, u_dither: p.dither / 100, u_con: p.con / 100, u_shift: p.shift / 100, u_mix: p.mix / 100 }),
+  },
   double: {
     name: 'Double exposition', group: 'Matière', hint: 'Superposer une seconde image',
     params: [
@@ -821,9 +835,9 @@ export const FX = {
     },
   },
   texture: {
-    name: 'Texture', group: 'Matière', hint: 'Papier, poussière, fuite de lumière, plis, toile, verre cannelé',
+    name: 'Texture', group: 'Matière', hint: 'Papier, poussière, rayures, fuite de lumière, plis, toile, verre cannelé',
     params: [
-      { k: 'type', label: 'Type', type: 'select', def: 'paper', options: [['paper', 'Papier'], ['dust', 'Poussière & rayures'], ['leak', 'Fuite de lumière'], ['fold', 'Plis'], ['canvas', 'Toile'], ['glass', 'Verre cannelé']] },
+      { k: 'type', label: 'Type', type: 'select', def: 'paper', options: [['paper', 'Papier'], ['dust', 'Poussière & rayures'], ['leak', 'Fuite de lumière'], ['fold', 'Plis'], ['canvas', 'Toile'], ['glass', 'Verre cannelé'], ['scratch', 'Rayures de film']] },
       R('amt', 'Intensité', 0, 100, 55, { fmt: pct }),
       R('scale', 'Échelle', 30, 300, 100, { fmt: (v) => `${v}%` }),
       R('angle', 'Angle', -180, 180, 0, { fmt: deg, when: (p) => p.type === 'leak' || p.type === 'glass' }),
