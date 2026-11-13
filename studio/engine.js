@@ -387,7 +387,7 @@ void main(){ vec3 c=clamp(texture(u_src,v_uv).rgb,0.0,1.0); float l=clamp((luma(
   vec3 g=pal(u_pal>1.5?l:l*0.85+u_shift);
   o=vec4(mix(c,g,u_mix),1.0); }`;
 
-S.headshake = `uniform vec2 u_pt; uniform float u_len,u_angle,u_side,u_rx,u_ry,u_soft,u_band,u_irr,u_lines,u_echo,u_edist,u_keep,u_seed;
+S.headshake = `uniform vec2 u_pt; uniform float u_len,u_angle,u_side,u_rx,u_ry,u_soft,u_band,u_irr,u_lines,u_echo,u_edist,u_keep,u_seed,u_mode,u_start;
 float n1(float x,float s){ float i=floor(x),f=fract(x); f=f*f*(3.0-2.0*f); return mix(hash(vec2(i,s)),hash(vec2(i+1.0,s)),f); }
 vec3 trailN(vec2 uv,vec2 dd,float j,int n){ vec3 acc=vec3(0.0); float ws=0.0;
   for(int i=0;i<32;i++){ if(i>=n) break; float t=(float(i)+0.5+j)/float(n); float s,w;
@@ -395,21 +395,33 @@ vec3 trailN(vec2 uv,vec2 dd,float j,int n){ vec3 acc=vec3(0.0); float ws=0.0;
     vec3 c=texture(u_src,uv-dd*s).rgb; acc+=c*c*w; ws+=w; }
   return sqrt(acc/ws); }
 void main(){
-  vec2 p=(v_uv-u_pt)*u_res/u_unit; float d=length(vec2(p.x/u_rx,p.y/u_ry));
-  float m=1.0-smoothstep(1.0-u_soft,1.0,d); vec3 s0=texture(u_src,v_uv).rgb;
-  if(m<=0.001){ o=vec4(s0,1.0); return; }
+  vec2 p=(v_uv-u_pt)*u_res/u_unit; vec3 s0=texture(u_src,v_uv).rgb;
   vec2 dir=vec2(cos(u_angle),sin(u_angle)); vec2 nrm=vec2(-dir.y,dir.x); float v=dot(p,nrm);
   float b=n1(v/u_band,u_seed)*0.62+n1(v/u_band*3.7+11.0,u_seed+2.0)*0.38;
   float line=hash(vec2(floor(v*520.0),u_seed+3.0));
   float amp=mix(1.0,smoothstep(0.2,0.8,b)*(0.55+0.9*line),u_irr);
-  vec2 dd=dir*u_len*m*amp*u_unit/u_res; float j=ign(gl_FragCoord.xy)-0.5;
-  vec3 c=trailN(v_uv,dd,j,32);
-  for(int k=1;k<=4;k++){ if(float(k)>u_echo) break;
-    vec2 off=dir*u_edist*float(k)*(u_side==0.0?1.0:u_side)*u_unit/u_res*m;
-    c=mix(c,trailN(v_uv-off,dd*0.9,j,12),0.42*pow(0.62,float(k-1))); }
+  float j=ign(gl_FragCoord.xy)-0.5; vec3 c; float m, mv;
+  if(u_mode>0.5){
+    float sd=dot(p,dir); float st=u_start*u_rx; float sg=u_side==0.0?(sd<0.0?-1.0:1.0):u_side; float db=sg*sd-st;
+    mv=1.0-smoothstep(1.0-u_soft,1.0,abs(v)/u_ry); m=mv;
+    float al=pow(1.0-smoothstep(0.0,u_len*amp+0.0001,db),0.7)*step(0.0,db)*mv;
+    vec2 ps=p-dir*sd+dir*sg*st+dir*(hash(vec2(floor(v*400.0),u_seed+9.0))-0.5)*0.008;
+    c=mix(s0,texture(u_src,u_pt+ps*u_unit/u_res).rgb,al);
+    for(int k=1;k<=4;k++){ if(float(k)>u_echo) break;
+      vec2 off=dir*u_edist*float(k)*(u_side==0.0?1.0:u_side)*u_unit/u_res;
+      c=mix(c,texture(u_src,v_uv-off).rgb,0.35*pow(0.6,float(k-1))*mv); }
+  } else {
+    float d=length(vec2(p.x/u_rx,p.y/u_ry)); m=1.0-smoothstep(1.0-u_soft,1.0,d);
+    if(m<=0.001){ o=vec4(s0,1.0); return; }
+    vec2 dd=dir*u_len*m*amp*u_unit/u_res;
+    c=trailN(v_uv,dd,j,32);
+    for(int k=1;k<=4;k++){ if(float(k)>u_echo) break;
+      vec2 off=dir*u_edist*float(k)*(u_side==0.0?1.0:u_side)*u_unit/u_res*m;
+      c=mix(c,trailN(v_uv-off,dd*0.9,j,12),0.42*pow(0.62,float(k-1))); }
+  }
   float moved=clamp(length(c-s0)*4.0,0.0,1.0)*clamp(amp*u_len*m*30.0,0.0,1.0);
   c*=1.0-u_lines*0.4*moved*(hash(vec2(floor(v*900.0),5.0))-0.2);
-  c=mix(c,s0,u_keep*0.8*m);
+  if(u_mode<0.5) c=mix(c,s0,u_keep*0.8*m);
   o=vec4(c,1.0); }`;
 
 const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
@@ -523,17 +535,19 @@ export const FX = {
     },
   },
   headshake: {
-    name: 'Visage en mouvement', group: 'Mouvement', hint: 'Tête bougée : stries, échos, corps net', point: true,
+    name: 'Visage en mouvement', group: 'Mouvement', hint: 'Tête bougée : flou ou traits étirés, corps net', point: true,
     zone: (p) => { const rx = 0.05 + (p.size / 100) * 0.4; return { rx, ry: rx * 1.25 }; },
     params: [
+      { k: 'style', label: 'Style', type: 'select', def: 'blur', options: [['blur', 'Flou de mouvement'], ['stretch', 'Étirement (traits tirés)']] },
       { k: 'side', label: 'Sens', type: 'select', def: 'left', options: [['left', 'Vers la gauche'], ['right', 'Vers la droite'], ['both', 'Des deux côtés']] },
-      R('size', 'Taille de la zone', 5, 100, 40, { fmt: pct }),
+      R('size', 'Taille de la zone', 5, 100, 30, { fmt: pct }),
       R('len', 'Intensité', 0, 100, 50, { fmt: pct }),
+      R('start', 'Départ des traînées', 0, 100, 30, { fmt: pct, when: (p) => p.style === 'stretch' }),
       R('irr', 'Stries irrégulières', 0, 100, 65, { fmt: pct }),
       R('band', 'Largeur des stries', 1, 100, 35, { fmt: pct }),
       R('echo', 'Échos', 0, 4, 1),
       R('edist', 'Écart des échos', 5, 100, 30, { fmt: pct }),
-      R('keep', 'Visage lisible', 0, 100, 45, { fmt: pct }),
+      R('keep', 'Visage lisible', 0, 100, 45, { fmt: pct, when: (p) => p.style === 'blur' }),
       R('soft', 'Douceur des bords', 10, 100, 60, { fmt: pct }),
       R('angle', 'Inclinaison', -30, 30, 0, { fmt: deg }),
       R('lines', 'Fines lignes', 0, 100, 30, { fmt: pct }),
@@ -541,7 +555,7 @@ export const FX = {
     ],
     render(E, inp, p, L) {
       const z = FX.headshake.zone(p);
-      return E.pass('headshake', inp, { u_pt: L.pt, u_len: (p.len / 100) * 0.4, u_angle: rad(p.angle), u_side: { left: -1, right: 1, both: 0 }[p.side], u_rx: z.rx, u_ry: z.ry, u_soft: p.soft / 100, u_band: 0.004 + (p.band / 100) * 0.12, u_irr: p.irr / 100, u_lines: p.lines / 100, u_echo: p.echo, u_edist: (p.edist / 100) * 0.12, u_keep: p.keep / 100, u_seed: p.seed });
+      return E.pass('headshake', inp, { u_pt: L.pt, u_len: (p.len / 100) * (p.style === 'stretch' ? 0.9 : 0.4), u_angle: rad(p.angle), u_side: { left: -1, right: 1, both: 0 }[p.side], u_rx: z.rx, u_ry: z.ry, u_soft: p.soft / 100, u_band: 0.004 + (p.band / 100) * 0.12, u_irr: p.irr / 100, u_lines: p.lines / 100, u_echo: p.echo, u_edist: (p.edist / 100) * 0.12, u_keep: p.keep / 100, u_seed: p.seed, u_mode: p.style === 'stretch' ? 1 : 0, u_start: p.start / 100 });
     },
   },
   smear: {
