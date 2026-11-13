@@ -218,8 +218,9 @@ function buildAddMenu() {
 // ---------- Looks ----------
 const FACE_HINT = 'Glissez le point sur le visage, puis ajustez la taille de la zone.';
 const LOOKS = [
-  ['Visage filé', [['headshake', { pt: [0.5, 0.38] }], ['tone', { p: { sat: 0, con: 35, vig: 25 } }], ['grain', { p: { amt: 50, col: 0 } }]], FACE_HINT],
-  ['Visage étiré', [['headshake', { pt: [0.5, 0.38], p: { style: 'stretch', side: 'left', len: 40, irr: 75, band: 20, echo: 0, size: 28, start: 28 } }], ['tone', { p: { sat: 0, con: 35, vig: 25 } }], ['grain', { p: { amt: 55, col: 0 } }]], FACE_HINT],
+  ['Visage filé', [['headshake', { pt: [0.5, 0.38], p: { style: 'blur', side: 'left', len: 80, irr: 35, band: 40, echo: 2, edist: 40, keep: 30, size: 28 } }], ['tone', { p: { sat: 0, con: 45, exp: -14, vig: 40 } }], ['grain', { p: { amt: 50, col: 0 } }]], FACE_HINT],
+  ['Visage strié', [['headshake', { pt: [0.5, 0.38], p: { style: 'blur', side: 'both', len: 70, irr: 90, band: 50, echo: 0, keep: 0, size: 26, soft: 35, lines: 20 } }], ['tone', { p: { sat: 0, con: 45, exp: -14, vig: 40 } }], ['grain', { p: { amt: 35, col: 0 } }]], FACE_HINT],
+  ['Visage étiré', [['headshake', { pt: [0.5, 0.38], p: { style: 'stretch', side: 'left', len: 80, irr: 60, band: 45, echo: 0, size: 30, start: 28 } }], ['tone', { p: { sat: 0, con: 45, exp: -14, vig: 40 } }], ['grain', { p: { amt: 55, col: 0 } }]], FACE_HINT],
   ['Visage rouge', [['headshake', { pt: [0.5, 0.38], p: { style: 'stretch', side: 'right', len: 36, irr: 70, band: 16, echo: 0, size: 28, start: 28 } }], ['duotone', { p: { a: '#0b0000', b: '#ff3b2a', con: 45 } }], ['grain', { p: { amt: 30, col: 0 } }]], FACE_HINT],
   ['Moyen format', [['medium']]],
   ['35 mm', [['film35', { p: { border: true, format: '135' } }]]],
@@ -239,7 +240,7 @@ const LOOKS = [
   ['Balayage', [['tone', { p: { sat: 0, con: 35 } }], ['smear', { p: { len: 60, angle: 180, band: 25, irr: 90, lines: 70 } }], ['grain', { p: { amt: 50, col: 0 } }]]],
   ['Thermique', [['thermal', { p: { pal: 'rainbow', steps: 7, dither: 70, mix: 68, con: 10 } }], ['grain', { p: { amt: 35 } }]]],
   ['Film abîmé', [['tone', { p: { sat: 0, con: 45, exp: -10 } }], ['ghost', { p: { count: 2, dist: 16, angle: 40, decay: 85, mode: 'lighten' } }], ['texture', { p: { type: 'scratch', amt: 60 } }], ['grain', { p: { amt: 55, col: 0 } }]]],
-  ['Glitch bleu', [['motion', { p: { shutter: 6, move: 35 } }], ['glitch', { p: { n: 18, amt: 40, prob: 40, soft: 55 } }], ['duotone', { p: { a: '#0a10c8', b: '#ebbaff', con: 20 } }], ['glow', { p: { thr: 30, radius: 55, int: 60 } }]]],
+  ['Glitch bleu', [['tone', { p: { exp: -10, con: 25 } }], ['motion', { p: { shutter: 6, move: 40 } }], ['glitch', { pt: [0.5, 0.38], zone: 'center', zpos: 0.55, zfe: 0.3, p: { n: 16, amt: 38, prob: 45, soft: 60 } }], ['duotone', { p: { a: '#0618b8', b: '#e6b8ff', con: 55, bri: -6 } }], ['glow', { p: { thr: 35, radius: 55, int: 50 } }]], FACE_HINT],
 ];
 // Looks enregistrés par l'utilisateur (stockés dans ce navigateur).
 const STORE = 'wkndr-studio-looks';
