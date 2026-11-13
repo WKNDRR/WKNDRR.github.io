@@ -219,7 +219,8 @@ function buildAddMenu() {
 const FACE_HINT = 'Glissez le point sur le visage, puis ajustez la taille de la zone.';
 const LOOKS = [
   ['Visage filé', [['headshake', { pt: [0.5, 0.38] }], ['tone', { p: { sat: 0, con: 35, vig: 25 } }], ['grain', { p: { amt: 50, col: 0 } }]], FACE_HINT],
-  ['Visage rouge', [['headshake', { pt: [0.5, 0.38], p: { len: 55, irr: 80, echo: 1, keep: 35 } }], ['duotone', { p: { a: '#0b0000', b: '#ff3b2a', con: 45 } }], ['grain', { p: { amt: 30, col: 0 } }]], FACE_HINT],
+  ['Visage étiré', [['headshake', { pt: [0.5, 0.38], p: { style: 'stretch', side: 'left', len: 40, irr: 75, band: 20, echo: 0, size: 28, start: 28 } }], ['tone', { p: { sat: 0, con: 35, vig: 25 } }], ['grain', { p: { amt: 55, col: 0 } }]], FACE_HINT],
+  ['Visage rouge', [['headshake', { pt: [0.5, 0.38], p: { style: 'stretch', side: 'right', len: 36, irr: 70, band: 16, echo: 0, size: 28, start: 28 } }], ['duotone', { p: { a: '#0b0000', b: '#ff3b2a', con: 45 } }], ['grain', { p: { amt: 30, col: 0 } }]], FACE_HINT],
   ['Moyen format', [['medium']]],
   ['35 mm', [['film35', { p: { border: true, format: '135' } }]]],
   ['Instax', [['instax']]],
