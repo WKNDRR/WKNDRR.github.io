@@ -536,7 +536,7 @@ export const FX = {
   },
   headshake: {
     name: 'Visage en mouvement', group: 'Mouvement', hint: 'Tête bougée : flou ou traits étirés, corps net', point: true,
-    zone: (p) => { const rx = 0.05 + (p.size / 100) * 0.4; return { rx, ry: rx * 1.25 }; },
+    zone: (p) => { const rx = 0.05 + (p.size / 100) * 0.4; return { rx: p.style === 'blur' ? rx * 1.6 : rx, ry: rx * 1.25 }; },
     params: [
       { k: 'style', label: 'Style', type: 'select', def: 'blur', options: [['blur', 'Flou de mouvement'], ['stretch', 'Étirement (traits tirés)']] },
       { k: 'side', label: 'Sens', type: 'select', def: 'left', options: [['left', 'Vers la gauche'], ['right', 'Vers la droite'], ['both', 'Des deux côtés']] },
