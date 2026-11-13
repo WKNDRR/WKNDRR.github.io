@@ -173,7 +173,7 @@ function renderPanel() {
 }
 
 // ---------- Point de contrôle sur l'image ----------
-const handle = $('#handle');
+const handle = $('#handle'), ring = $('#ring');
 function handleLayer() {
   const L = state.layers.find((l) => l.id === state.sel);
   return L && L.on && (FX[L.fx].point || L.zone === 'center' || L.zone === 'edges') ? L : null;
@@ -181,10 +181,16 @@ function handleLayer() {
 function placeHandle() {
   const L = handleLayer();
   handle.hidden = !L || !doc.bitmap || before;
+  const z = L && FX[L.fx].zone ? FX[L.fx].zone(L.p) : null;
+  ring.hidden = handle.hidden || !z;
   if (handle.hidden) return;
   const r = view.getBoundingClientRect();
   handle.style.left = `${r.left + L.pt[0] * r.width}px`;
   handle.style.top = `${r.top + L.pt[1] * r.height}px`;
+  if (z) {
+    const u = Math.max(r.width, r.height);
+    Object.assign(ring.style, { left: handle.style.left, top: handle.style.top, width: `${2 * z.rx * u}px`, height: `${2 * z.ry * u}px` });
+  }
 }
 handle.addEventListener('pointerdown', (e) => {
   handle.setPointerCapture(e.pointerId);
@@ -210,7 +216,10 @@ function buildAddMenu() {
 }
 
 // ---------- Looks ----------
+const FACE_HINT = 'Glissez le point sur le visage, puis ajustez la taille de la zone.';
 const LOOKS = [
+  ['Visage filé', [['headshake', { pt: [0.5, 0.38] }], ['tone', { p: { sat: 0, con: 35, vig: 25 } }], ['grain', { p: { amt: 50, col: 0 } }]], FACE_HINT],
+  ['Visage rouge', [['headshake', { pt: [0.5, 0.38], p: { len: 55, irr: 80, echo: 1, keep: 35 } }], ['duotone', { p: { a: '#0b0000', b: '#ff3b2a', con: 45 } }], ['grain', { p: { amt: 30, col: 0 } }]], FACE_HINT],
   ['Moyen format', [['medium']]],
   ['35 mm', [['film35', { p: { border: true, format: '135' } }]]],
   ['Instax', [['instax']]],
@@ -283,13 +292,14 @@ function renderLooks() {
     el('button', { class: 'look-main', onclick: () => applySaved(i) }, s.name),
     el('button', { class: 'look-del', title: 'Supprimer', 'aria-label': `Supprimer ${s.name}`, html: icon('M7 7l10 10M17 7 7 17'), onclick: () => removeSaved(i) }))));
   if (saved.length) nav.append(el('span', { class: 'look-sep' }));
-  for (const [name, layers] of LOOKS) nav.append(el('button', { class: 'look', onclick: () => applyLook(layers) }, name));
+  for (const [name, layers, hint] of LOOKS) nav.append(el('button', { class: 'look', onclick: () => applyLook(layers, hint) }, name));
   syncSave();
 }
-function applyLook(layers) {
+function applyLook(layers, hint) {
   state.layers = layers.map(([fx, over]) => makeLayer(fx, over));
   state.sel = state.layers[0]?.id ?? null;
   commit(); renderPanel(); draw();
+  if (hint) toast(hint, 5200);
 }
 
 // ---------- Import ----------
