@@ -365,17 +365,20 @@ void main(){
   }
   o=vec4(max(c,0.0),1.0); }`;
 
-S.glitch = `uniform float u_n,u_amt,u_prob,u_soft,u_chroma,u_seed,u_vert;
+S.glitch = `uniform vec2 u_pt; uniform float u_n,u_amt,u_prob,u_soft,u_chroma,u_seed,u_vert,u_msk,u_rx,u_ry,u_dim;
 void main(){
+  vec2 gp=(v_uv-u_pt)*u_res/u_unit; float gm=u_msk>0.5?1.0-smoothstep(0.55,1.0,length(vec2(gp.x/u_rx,gp.y/u_ry))):1.0;
   float coord=u_vert>0.5?v_uv.x:v_uv.y;
   float b=floor(coord*u_n), b2=floor(coord*u_n*0.3);
   float a1=step(1.0-u_prob,hash(vec2(b,u_seed+7.0))), a2=step(1.0-u_prob*0.6,hash(vec2(b2,u_seed+11.0)));
   float shift=(hash(vec2(b,u_seed+3.0))-0.5)*2.0*u_amt*a1+(hash(vec2(b2,u_seed+13.0))-0.5)*2.0*u_amt*1.5*a2;
-  vec2 cd=u_vert>0.5?vec2(0.0,1.0):vec2(1.0,0.0); vec2 d=cd*shift; float act=step(0.0001,abs(shift));
+  shift*=gm; vec2 cd=u_vert>0.5?vec2(0.0,1.0):vec2(1.0,0.0); vec2 d=cd*shift; float act=step(0.0001,abs(shift));
   vec3 acc=vec3(0.0);
   for(int i=0;i<10;i++){ float t=float(i)/9.0; vec2 uv=v_uv-d*(1.0-u_soft*t); vec2 ch=cd*u_chroma*0.012*act;
     acc+=vec3(texture(u_src,uv+ch).r,texture(u_src,uv).g,texture(u_src,uv-ch).b); }
-  o=vec4(acc/10.0,1.0); }`;
+  vec3 gc=acc/10.0; float gd=length(gp/vec2(u_ry*0.85,u_ry));
+  gc*=mix(1.0,1.0-u_dim,smoothstep(0.7,2.0,gd))*(1.0+u_dim*0.35*(1.0-smoothstep(0.0,1.0,gd)));
+  o=vec4(gc,1.0); }`;
 
 S.thermal = `uniform sampler2D u_bl; uniform float u_pal,u_steps,u_dither,u_con,u_mix,u_shift,u_rim;
 vec3 pal(float t){
@@ -384,8 +387,12 @@ vec3 pal(float t){
   if(u_pal<2.5) return vec3(smoothstep(0.1,0.55,t),smoothstep(0.45,0.9,t)*0.9,mix(0.5*smoothstep(0.0,0.3,t)*(1.0-smoothstep(0.3,0.6,t)),1.0,smoothstep(0.85,1.0,t)));
   if(u_pal<3.5){ vec3 c=mix(vec3(0.02,0.0,0.01),vec3(0.72,0.06,0.03),smoothstep(0.08,0.3,t));
     c=mix(c,vec3(1.0,0.42,0.1),smoothstep(0.3,0.58,t)); c=mix(c,vec3(1.0,0.84,0.5),smoothstep(0.58,0.82,t)); return mix(c,vec3(1.0,0.97,0.92),smoothstep(0.82,0.97,t)); }
-  vec3 c=mix(vec3(0.02,0.04,0.03),vec3(0.05,0.27,0.13),smoothstep(0.05,0.35,t));
-  c=mix(c,vec3(0.2,0.58,0.16),smoothstep(0.35,0.65,t)); return mix(c,vec3(0.9,0.93,0.18),smoothstep(0.65,0.95,t)); }
+  if(u_pal<4.5){ vec3 c=mix(vec3(0.02,0.04,0.03),vec3(0.05,0.27,0.13),smoothstep(0.05,0.35,t));
+    c=mix(c,vec3(0.2,0.58,0.16),smoothstep(0.35,0.65,t)); return mix(c,vec3(0.9,0.93,0.18),smoothstep(0.65,0.95,t)); }
+  if(u_pal<5.5){ vec3 c=mix(vec3(0.03,0.0,0.0),vec3(0.78,0.03,0.02),smoothstep(0.08,0.4,t));
+    c=mix(c,vec3(1.0,0.2,0.14),smoothstep(0.4,0.68,t)); return mix(c,vec3(1.0,0.82,0.82),smoothstep(0.7,0.95,t)); }
+  vec3 c=mix(vec3(0.01,0.01,0.14),vec3(0.0,0.2,0.95),smoothstep(0.08,0.45,t));
+  c=mix(c,vec3(0.35,0.5,1.0),smoothstep(0.45,0.72,t)); return mix(c,vec3(0.9,0.72,1.0),smoothstep(0.72,0.95,t)); }
 float adj(float x){ return clamp((x-0.5)*(1.0+u_con)+0.5,0.0,1.0); }
 void main(){ vec3 c=clamp(texture(u_src,v_uv).rgb,0.0,1.0); float l=adj(luma(c));
   float lb=adj(luma(clamp(texture(u_bl,v_uv).rgb,0.0,1.0))); float e=clamp((l-lb)*3.0,0.0,1.0);
@@ -867,9 +874,12 @@ export const FX = {
     render: (E, inp, p) => E.pass('vhs', inp, { u_chroma: p.chroma / 100, u_soft: p.soft / 100, u_ring: p.ring / 100, u_jit: p.jit / 100, u_tear: p.tear / 100, u_noise: p.noise / 100, u_drop: p.drop / 100, u_fade: p.fade / 100, u_sat: p.sat / 100, u_seed: p.seed }),
   },
   glitch: {
-    name: 'Glitch', group: 'Écran', hint: 'Tranches décalées avec traînée',
+    name: 'Glitch', group: 'Écran', hint: 'Tranches décalées avec traînée, sur toute l’image ou autour d’un point', point: true,
+    zone: (p) => (p.size >= 100 ? null : { rx: 0.05 + (p.size / 100) * 0.5, ry: (0.05 + (p.size / 100) * 0.5) * 1.25 }),
     params: [
       { k: 'dir', label: 'Sens', type: 'select', def: 'h', options: [['h', 'Horizontal'], ['v', 'Vertical']] },
+      R('size', 'Taille de la zone', 5, 100, 100, { fmt: (v) => (v >= 100 ? 'Toute l’image' : `${v}`) }),
+      R('dim', 'Assombrir autour du point', 0, 100, 0, { fmt: pct, when: (p) => p.size < 100 }),
       R('n', 'Tranches', 4, 90, 24, { fmt: String }),
       R('amt', 'Décalage', 0, 100, 35, { fmt: pct }),
       R('prob', 'Densité', 5, 100, 45, { fmt: pct }),
@@ -877,12 +887,12 @@ export const FX = {
       R('chroma', 'Séparation RVB', 0, 100, 25, { fmt: pct }),
       R('seed', 'Variante', 1, 20, 1),
     ],
-    render: (E, inp, p) => E.pass('glitch', inp, { u_vert: p.dir === 'v' ? 1 : 0, u_n: p.n, u_amt: (p.amt / 100) * 0.25, u_prob: p.prob / 100, u_soft: p.soft / 100, u_chroma: p.chroma / 100, u_seed: p.seed }),
+    render: (E, inp, p, L) => E.pass('glitch', inp, { u_pt: L.pt, u_msk: p.size < 100 ? 1 : 0, u_rx: 0.05 + (p.size / 100) * 0.5, u_ry: (0.05 + (p.size / 100) * 0.5) * 1.25, u_dim: p.dim / 100, u_vert: p.dir === 'v' ? 1 : 0, u_n: p.n, u_amt: (p.amt / 100) * 0.25, u_prob: p.prob / 100, u_soft: p.soft / 100, u_chroma: p.chroma / 100, u_seed: p.seed }),
   },
   thermal: {
     name: 'Fausses couleurs', group: 'Couleur', hint: 'Palette par niveaux de lumière : thermique, infrarouge',
     params: [
-      { k: 'pal', label: 'Palette', type: 'select', def: 'rainbow', options: [['rainbow', 'Arc-en-ciel'], ['aurora', 'Aurore'], ['fire', 'Braise'], ['ir', 'Infrarouge (rouge, orange, blanc)'], ['green', 'Caméra verte']] },
+      { k: 'pal', label: 'Palette', type: 'select', def: 'rainbow', options: [['rainbow', 'Arc-en-ciel'], ['aurora', 'Aurore'], ['fire', 'Braise'], ['ir', 'Infrarouge (rouge, orange, blanc)'], ['green', 'Caméra verte'], ['redpink', 'Rouge et rose'], ['bleu', 'Bleu et lilas']] },
       R('steps', 'Paliers', 2, 33, 9, { fmt: (v) => (v > 32 ? 'Continu' : String(v)) }),
       R('dither', 'Tramage', 0, 100, 60, { fmt: pct }),
       R('con', 'Contraste', -50, 100, 20, { fmt: pct }),
@@ -895,7 +905,7 @@ export const FX = {
       const big = Math.max(inp.w, inp.h);
       const src = p.smooth > 0 ? E.blur(inp, (p.smooth / 100) * 0.012 * big, true) : inp;
       const bl = p.rim > 0 ? E.blur(src, 0.03 * big, true) : src;
-      const out = E.pass('thermal', src, { u_bl: bl, u_pal: ['rainbow', 'aurora', 'fire', 'ir', 'green'].indexOf(p.pal), u_steps: p.steps, u_dither: p.dither / 100, u_con: p.con / 100, u_shift: p.shift / 100, u_mix: p.mix / 100, u_rim: p.rim / 100 });
+      const out = E.pass('thermal', src, { u_bl: bl, u_pal: ['rainbow', 'aurora', 'fire', 'ir', 'green', 'redpink', 'bleu'].indexOf(p.pal), u_steps: p.steps, u_dither: p.dither / 100, u_con: p.con / 100, u_shift: p.shift / 100, u_mix: p.mix / 100, u_rim: p.rim / 100 });
       if (bl !== src) E.release(bl);
       if (src !== inp) E.release(src);
       return out;
