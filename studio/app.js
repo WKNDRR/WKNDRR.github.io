@@ -218,8 +218,10 @@ function buildAddMenu() {
 // ---------- Looks ----------
 const FACE_HINT = 'Glissez le point sur le visage, puis ajustez la taille de la zone.';
 const LOOKS = [
-  ['Lueur rouge', [['headshake', { pt: [0.5, 0.38], p: { style: 'blur', side: 'left', len: 65, irr: 25, band: 40, echo: 1, edist: 30, keep: 40, size: 30, dim: 85 } }], ['tone', { p: { exp: 0, con: 45, vig: 30 } }], ['gel', { p: { a: '#e0122a', b: '#ff2be0', mode: 'light', int: 90, angle: 35, spread: 70 } }], ['gel', { p: { a: '#4a0a10', b: '#2a0818', mode: 'screen', int: 70, angle: 90, spread: 80 } }], ['glow', { p: { thr: 45, radius: 65, int: 70, tint: '#ff9af5' } }], ['grain', { p: { amt: 80, size: 22, col: 25 } }]], FACE_HINT],
-  ['Nuit violette', [['tone', { p: { exp: -16, con: 45, vig: 60 } }], ['motion', { p: { shutter: 8, move: 75, trail: 40, angle: -35 } }], ['duotone', { p: { a: '#1c051f', b: '#6f86ff', con: 45 } }], ['gel', { p: { a: '#ff2fb0', b: '#3b2bff', mode: 'screen', int: 30, angle: 120, spread: 60 } }], ['glow', { p: { thr: 45, radius: 60, int: 50, tint: '#8fa0ff' } }], ['texture', { p: { type: 'dust', amt: 22 } }], ['grain', { p: { amt: 25 } }]]],
+  ['Infrarouge', [['auto', { p: { target: 40 } }], ['thermal', { p: { pal: 'ir', steps: 7, dither: 20, con: 40, smooth: 62, rim: 0, mix: 100 } }], ['tone', { p: { vig: 35 } }], ['grain', { p: { amt: 25, col: 0 } }]]],
+  ['Caméra verte', [['auto', { p: { target: 38 } }], ['thermal', { p: { pal: 'green', steps: 33, con: 55, smooth: 65, rim: 90, mix: 100 } }], ['glow', { p: { thr: 40, radius: 40, int: 45, tint: '#c8ff55' } }], ['tone', { p: { vig: 45 } }], ['grain', { p: { amt: 35, col: 0 } }]]],
+  ['Lueur rouge', [['auto', { p: { target: 45 } }], ['headshake', { pt: [0.5, 0.38], p: { style: 'blur', side: 'left', len: 65, irr: 25, band: 40, echo: 1, edist: 30, keep: 40, size: 30, dim: 85 } }], ['tone', { p: { exp: 0, con: 45, vig: 30 } }], ['gel', { p: { a: '#e0122a', b: '#ff2be0', mode: 'light', int: 90, angle: 35, spread: 70 } }], ['gel', { p: { a: '#4a0a10', b: '#2a0818', mode: 'screen', int: 70, angle: 90, spread: 80 } }], ['glow', { p: { thr: 45, radius: 65, int: 70, tint: '#ff9af5' } }], ['grain', { p: { amt: 80, size: 22, col: 25 } }]], FACE_HINT],
+  ['Nuit violette', [['auto', { p: { target: 45 } }], ['tone', { p: { exp: -16, con: 45, vig: 60 } }], ['motion', { p: { shutter: 8, move: 75, trail: 40, angle: -35 } }], ['duotone', { p: { a: '#1c051f', b: '#6f86ff', con: 45 } }], ['gel', { p: { a: '#ff2fb0', b: '#3b2bff', mode: 'screen', int: 30, angle: 120, spread: 60 } }], ['glow', { p: { thr: 45, radius: 60, int: 50, tint: '#8fa0ff' } }], ['texture', { p: { type: 'dust', amt: 22 } }], ['grain', { p: { amt: 25 } }]]],
   ['Visage filé', [['headshake', { pt: [0.5, 0.38], p: { style: 'blur', side: 'left', len: 80, irr: 35, band: 40, echo: 2, edist: 40, keep: 30, size: 28 } }], ['tone', { p: { sat: 0, con: 45, exp: -14, vig: 40 } }], ['grain', { p: { amt: 50, col: 0 } }]], FACE_HINT],
   ['Visage strié', [['headshake', { pt: [0.5, 0.38], p: { style: 'blur', side: 'both', len: 70, irr: 90, band: 50, echo: 0, keep: 0, size: 26, soft: 35, lines: 20 } }], ['tone', { p: { sat: 0, con: 45, exp: -14, vig: 40 } }], ['grain', { p: { amt: 35, col: 0 } }]], FACE_HINT],
   ['Visage étiré', [['headshake', { pt: [0.5, 0.38], p: { style: 'stretch', side: 'left', len: 80, irr: 60, band: 45, echo: 0, size: 30, start: 28 } }], ['tone', { p: { sat: 0, con: 45, exp: -14, vig: 40 } }], ['grain', { p: { amt: 55, col: 0 } }]], FACE_HINT],
@@ -301,7 +303,7 @@ function renderLooks() {
 }
 function applyLook(layers, hint) {
   state.layers = layers.map(([fx, over]) => makeLayer(fx, over));
-  state.sel = state.layers[0]?.id ?? null;
+  state.sel = (state.layers.find((l) => FX[l.fx].point) || state.layers[0])?.id ?? null;
   commit(); renderPanel(); draw();
   if (hint) toast(hint, 5200);
 }
