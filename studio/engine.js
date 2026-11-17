@@ -377,15 +377,27 @@ void main(){
     acc+=vec3(texture(u_src,uv+ch).r,texture(u_src,uv).g,texture(u_src,uv-ch).b); }
   o=vec4(acc/10.0,1.0); }`;
 
-S.thermal = `uniform float u_pal,u_steps,u_dither,u_con,u_mix,u_shift;
+S.thermal = `uniform sampler2D u_bl; uniform float u_pal,u_steps,u_dither,u_con,u_mix,u_shift,u_rim;
 vec3 pal(float t){
   if(u_pal<0.5) return 0.5+0.5*cos(6.2831853*(t+vec3(0.0,0.33,0.67)));
   if(u_pal<1.5) return 0.5+0.5*cos(6.2831853*(t*vec3(1.0,1.0,0.5)+vec3(0.8,0.9,0.3)));
-  return vec3(smoothstep(0.1,0.55,t),smoothstep(0.45,0.9,t)*0.9,mix(0.5*smoothstep(0.0,0.3,t)*(1.0-smoothstep(0.3,0.6,t)),1.0,smoothstep(0.85,1.0,t))); }
-void main(){ vec3 c=clamp(texture(u_src,v_uv).rgb,0.0,1.0); float l=clamp((luma(c)-0.5)*(1.0+u_con)+0.5,0.0,1.0);
+  if(u_pal<2.5) return vec3(smoothstep(0.1,0.55,t),smoothstep(0.45,0.9,t)*0.9,mix(0.5*smoothstep(0.0,0.3,t)*(1.0-smoothstep(0.3,0.6,t)),1.0,smoothstep(0.85,1.0,t)));
+  if(u_pal<3.5){ vec3 c=mix(vec3(0.02,0.0,0.01),vec3(0.72,0.06,0.03),smoothstep(0.08,0.3,t));
+    c=mix(c,vec3(1.0,0.42,0.1),smoothstep(0.3,0.58,t)); c=mix(c,vec3(1.0,0.84,0.5),smoothstep(0.58,0.82,t)); return mix(c,vec3(1.0,0.97,0.92),smoothstep(0.82,0.97,t)); }
+  vec3 c=mix(vec3(0.02,0.04,0.03),vec3(0.05,0.27,0.13),smoothstep(0.05,0.35,t));
+  c=mix(c,vec3(0.2,0.58,0.16),smoothstep(0.35,0.65,t)); return mix(c,vec3(0.9,0.93,0.18),smoothstep(0.65,0.95,t)); }
+float adj(float x){ return clamp((x-0.5)*(1.0+u_con)+0.5,0.0,1.0); }
+void main(){ vec3 c=clamp(texture(u_src,v_uv).rgb,0.0,1.0); float l=adj(luma(c));
+  float lb=adj(luma(clamp(texture(u_bl,v_uv).rgb,0.0,1.0))); float e=clamp((l-lb)*3.0,0.0,1.0);
+  l=mix(l,max(l*0.55,e*1.2),u_rim);
   if(u_steps<32.5){ float n=u_steps; l=floor(clamp(l+(ign(gl_FragCoord.xy)-0.5)*u_dither/n,0.0,0.999)*n)/(n-1.0); }
   vec3 g=pal(u_pal>1.5?l:l*0.85+u_shift);
   o=vec4(mix(c,g,u_mix),1.0); }`;
+
+S.autolv = `uniform float u_lo,u_hi,u_mid,u_target,u_amt;
+void main(){ vec3 c=texture(u_src,v_uv).rgb; vec3 n=clamp((c-u_lo)/(u_hi-u_lo),0.0,1.0);
+  float mn=clamp((u_mid-u_lo)/(u_hi-u_lo),0.05,0.95); n=pow(n,vec3(log(u_target)/log(mn)));
+  o=vec4(mix(c,n,u_amt),1.0); }`;
 
 S.headshake = `uniform vec2 u_pt; uniform float u_len,u_angle,u_side,u_rx,u_ry,u_soft,u_band,u_irr,u_lines,u_echo,u_edist,u_keep,u_seed,u_mode,u_start,u_dim;
 float n1(float x,float s){ float i=floor(x),f=fract(x); f=f*f*(3.0-2.0*f); return mix(hash(vec2(i,s)),hash(vec2(i+1.0,s)),f); }
@@ -868,16 +880,34 @@ export const FX = {
     render: (E, inp, p) => E.pass('glitch', inp, { u_vert: p.dir === 'v' ? 1 : 0, u_n: p.n, u_amt: (p.amt / 100) * 0.25, u_prob: p.prob / 100, u_soft: p.soft / 100, u_chroma: p.chroma / 100, u_seed: p.seed }),
   },
   thermal: {
-    name: 'Fausses couleurs', group: 'Couleur', hint: 'Palette par niveaux de lumière, façon thermique',
+    name: 'Fausses couleurs', group: 'Couleur', hint: 'Palette par niveaux de lumière : thermique, infrarouge',
     params: [
-      { k: 'pal', label: 'Palette', type: 'select', def: 'rainbow', options: [['rainbow', 'Arc-en-ciel'], ['aurora', 'Aurore'], ['fire', 'Thermique']] },
+      { k: 'pal', label: 'Palette', type: 'select', def: 'rainbow', options: [['rainbow', 'Arc-en-ciel'], ['aurora', 'Aurore'], ['fire', 'Braise'], ['ir', 'Infrarouge (rouge, orange, blanc)'], ['green', 'Caméra verte']] },
       R('steps', 'Paliers', 2, 33, 9, { fmt: (v) => (v > 32 ? 'Continu' : String(v)) }),
       R('dither', 'Tramage', 0, 100, 60, { fmt: pct }),
       R('con', 'Contraste', -50, 100, 20, { fmt: pct }),
-      R('shift', 'Décalage de palette', 0, 100, 0, { fmt: pct, when: (p) => p.pal !== 'fire' }),
+      R('smooth', 'Lissage', 0, 100, 0, { fmt: pct }),
+      R('rim', 'Contours chauds', 0, 100, 0, { fmt: pct }),
+      R('shift', 'Décalage de palette', 0, 100, 0, { fmt: pct, when: (p) => p.pal === 'rainbow' || p.pal === 'aurora' }),
       R('mix', 'Intensité', 0, 100, 85, { fmt: pct }),
     ],
-    render: (E, inp, p) => E.pass('thermal', inp, { u_pal: ['rainbow', 'aurora', 'fire'].indexOf(p.pal), u_steps: p.steps, u_dither: p.dither / 100, u_con: p.con / 100, u_shift: p.shift / 100, u_mix: p.mix / 100 }),
+    render(E, inp, p) {
+      const big = Math.max(inp.w, inp.h);
+      const src = p.smooth > 0 ? E.blur(inp, (p.smooth / 100) * 0.012 * big, true) : inp;
+      const bl = p.rim > 0 ? E.blur(src, 0.03 * big, true) : src;
+      const out = E.pass('thermal', src, { u_bl: bl, u_pal: ['rainbow', 'aurora', 'fire', 'ir', 'green'].indexOf(p.pal), u_steps: p.steps, u_dither: p.dither / 100, u_con: p.con / 100, u_shift: p.shift / 100, u_mix: p.mix / 100, u_rim: p.rim / 100 });
+      if (bl !== src) E.release(bl);
+      if (src !== inp) E.release(src);
+      return out;
+    },
+  },
+  auto: {
+    name: 'Niveaux automatiques', group: 'Couleur', hint: 'Équilibre la lumière de la photo : à placer en premier',
+    params: [
+      R('amt', 'Intensité', 0, 100, 100, { fmt: pct }),
+      R('target', 'Luminosité moyenne', 25, 70, 45, { fmt: pct }),
+    ],
+    render: (E, inp, p) => E.pass('autolv', inp, { u_lo: E.stats.lo, u_hi: E.stats.hi, u_mid: E.stats.mid, u_target: p.target / 100, u_amt: p.amt / 100 }),
   },
   double: {
     name: 'Double exposition', group: 'Matière', hint: 'Superposer une seconde image',
@@ -937,6 +967,7 @@ export class Engine {
     this.float = !!gl.getExtension('EXT_color_buffer_float') || !!gl.getExtension('EXT_color_buffer_half_float');
     this.low = false;
     this.maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    this.stats = { lo: 0, hi: 1, mid: 0.5 };
     this.progs = {}; this.pool = new Map(); this.assets = new Map(); this.src = null;
     const vs = this.shader(gl.VERTEX_SHADER, VERT); this.vs = vs;
     const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
@@ -1047,7 +1078,21 @@ export class Engine {
     return this.texCache.get(key);
   }
   drop(t) { if (t) this.gl.deleteTexture(t.tex); }
-  setSource(bitmap) { this.drop(this.src); this.src = this.upload(bitmap); }
+  setSource(bitmap) { this.drop(this.src); this.src = this.upload(bitmap); this.stats = Engine.measure(bitmap); }
+  // Points noir, blanc et milieu (1 %, 99 %, 50 %) de la luminance, pour les niveaux automatiques.
+  static measure(bitmap) {
+    const k = Math.min(1, 160 / Math.max(bitmap.width, bitmap.height)), w = Math.max(1, Math.round(bitmap.width * k)), h = Math.max(1, Math.round(bitmap.height * k));
+    try {
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(bitmap, 0, 0, w, h);
+      const d = g.getImageData(0, 0, w, h).data, hist = new Uint32Array(256);
+      for (let i = 0; i < d.length; i += 4) hist[Math.round(0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2])]++;
+      const total = w * h, at = (q) => { let n = 0; for (let v = 0; v < 256; v++) { n += hist[v]; if (n >= q * total) return v / 255; } return 1; };
+      const lo = at(0.01); let hi = at(0.99);
+      if (hi - lo < 0.15) hi = Math.min(1, lo + 0.15);
+      return { lo, hi, mid: Math.min(hi - 0.02, Math.max(lo + 0.02, at(0.5))) };
+    } catch { return { lo: 0, hi: 1, mid: 0.5 }; }
+  }
   setAsset(id, bitmap) { /* id : identifiant du calque, suivi d'un emplacement éventuel */ this.drop(this.assets.get(id)); this.assets.set(id, this.upload(bitmap)); }
 
   // Recadrage centré d'après le format du premier calque « Moyen format » actif.
