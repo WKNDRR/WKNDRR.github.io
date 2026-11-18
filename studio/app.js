@@ -218,14 +218,15 @@ function buildAddMenu() {
 // ---------- Looks ----------
 const FACE_HINT = 'Glissez le point sur le visage, puis ajustez la taille de la zone.';
 const LOOKS = [
-  ['Infrarouge', [['auto', { p: { target: 40 } }], ['thermal', { p: { pal: 'ir', steps: 7, dither: 20, con: 40, smooth: 62, rim: 0, mix: 100 } }], ['tone', { p: { vig: 35 } }], ['grain', { p: { amt: 25, col: 0 } }]]],
-  ['Caméra verte', [['auto', { p: { target: 38 } }], ['thermal', { p: { pal: 'green', steps: 33, con: 55, smooth: 65, rim: 90, mix: 100 } }], ['glow', { p: { thr: 40, radius: 40, int: 45, tint: '#c8ff55' } }], ['tone', { p: { vig: 45 } }], ['grain', { p: { amt: 35, col: 0 } }]]],
+  ['Visage rouge', [['auto', { p: { target: 42 } }], ['headshake', { pt: [0.5, 0.38], p: { style: 'stretch', side: 'right', len: 60, irr: 70, band: 16, echo: 0, size: 30, start: 28, dim: 65 } }], ['thermal', { p: { pal: 'redpink', steps: 33, con: 45, smooth: 0, rim: 0, mix: 100 } }], ['grain', { p: { amt: 30, col: 0 } }]], FACE_HINT],
+  ['Glitch bleu', [['auto', { p: { target: 45 } }], ['motion', { p: { shutter: 7, move: 50, angle: -10 } }], ['glitch', { pt: [0.5, 0.38], p: { n: 16, amt: 38, prob: 45, soft: 60, size: 42, dim: 60 } }], ['thermal', { p: { pal: 'bleu', steps: 33, con: 35, smooth: 0, rim: 0, mix: 100 } }], ['glow', { p: { thr: 40, radius: 50, int: 50, tint: '#a8b4ff' } }], ['grain', { p: { amt: 20 } }]], FACE_HINT],
+  ['Visage filé', [['headshake', { pt: [0.5, 0.38], p: { style: 'blur', side: 'left', len: 80, irr: 35, band: 40, echo: 2, edist: 40, keep: 30, size: 28 } }], ['tone', { p: { sat: 0, con: 45, exp: -14, vig: 40 } }], ['grain', { p: { amt: 50, col: 0 } }]], FACE_HINT],
+  ['Visage étiré', [['headshake', { pt: [0.5, 0.38], p: { style: 'stretch', side: 'left', len: 80, irr: 60, band: 45, echo: 0, size: 30, start: 28 } }], ['tone', { p: { sat: 0, con: 45, exp: -14, vig: 40 } }], ['grain', { p: { amt: 55, col: 0 } }]], FACE_HINT],
+  ['Visage strié', [['headshake', { pt: [0.5, 0.38], p: { style: 'blur', side: 'both', len: 70, irr: 90, band: 50, echo: 0, keep: 0, size: 26, soft: 35, lines: 20 } }], ['tone', { p: { sat: 0, con: 45, exp: -14, vig: 40 } }], ['grain', { p: { amt: 35, col: 0 } }]], FACE_HINT],
   ['Lueur rouge', [['auto', { p: { target: 45 } }], ['headshake', { pt: [0.5, 0.38], p: { style: 'blur', side: 'left', len: 65, irr: 25, band: 40, echo: 1, edist: 30, keep: 40, size: 30, dim: 85 } }], ['tone', { p: { exp: 0, con: 45, vig: 30 } }], ['gel', { p: { a: '#e0122a', b: '#ff2be0', mode: 'light', int: 90, angle: 35, spread: 70 } }], ['gel', { p: { a: '#4a0a10', b: '#2a0818', mode: 'screen', int: 70, angle: 90, spread: 80 } }], ['glow', { p: { thr: 45, radius: 65, int: 70, tint: '#ff9af5' } }], ['grain', { p: { amt: 80, size: 22, col: 25 } }]], FACE_HINT],
   ['Nuit violette', [['auto', { p: { target: 45 } }], ['tone', { p: { exp: -16, con: 45, vig: 60 } }], ['motion', { p: { shutter: 8, move: 75, trail: 40, angle: -35 } }], ['duotone', { p: { a: '#1c051f', b: '#6f86ff', con: 45 } }], ['gel', { p: { a: '#ff2fb0', b: '#3b2bff', mode: 'screen', int: 30, angle: 120, spread: 60 } }], ['glow', { p: { thr: 45, radius: 60, int: 50, tint: '#8fa0ff' } }], ['texture', { p: { type: 'dust', amt: 22 } }], ['grain', { p: { amt: 25 } }]]],
-  ['Visage filé', [['headshake', { pt: [0.5, 0.38], p: { style: 'blur', side: 'left', len: 80, irr: 35, band: 40, echo: 2, edist: 40, keep: 30, size: 28 } }], ['tone', { p: { sat: 0, con: 45, exp: -14, vig: 40 } }], ['grain', { p: { amt: 50, col: 0 } }]], FACE_HINT],
-  ['Visage strié', [['headshake', { pt: [0.5, 0.38], p: { style: 'blur', side: 'both', len: 70, irr: 90, band: 50, echo: 0, keep: 0, size: 26, soft: 35, lines: 20 } }], ['tone', { p: { sat: 0, con: 45, exp: -14, vig: 40 } }], ['grain', { p: { amt: 35, col: 0 } }]], FACE_HINT],
-  ['Visage étiré', [['headshake', { pt: [0.5, 0.38], p: { style: 'stretch', side: 'left', len: 80, irr: 60, band: 45, echo: 0, size: 30, start: 28 } }], ['tone', { p: { sat: 0, con: 45, exp: -14, vig: 40 } }], ['grain', { p: { amt: 55, col: 0 } }]], FACE_HINT],
-  ['Visage rouge', [['auto', { p: { target: 42 } }], ['headshake', { pt: [0.5, 0.38], p: { style: 'stretch', side: 'right', len: 60, irr: 70, band: 16, echo: 0, size: 30, start: 28, dim: 65 } }], ['thermal', { p: { pal: 'redpink', steps: 33, con: 45, smooth: 0, rim: 0, mix: 100 } }], ['grain', { p: { amt: 30, col: 0 } }]], FACE_HINT],
+  ['Infrarouge', [['auto', { p: { target: 40 } }], ['thermal', { p: { pal: 'ir', steps: 7, dither: 20, con: 40, smooth: 62, rim: 0, mix: 100 } }], ['tone', { p: { vig: 35 } }], ['grain', { p: { amt: 25, col: 0 } }]]],
+  ['Caméra verte', [['auto', { p: { target: 38 } }], ['thermal', { p: { pal: 'green', steps: 33, con: 55, smooth: 65, rim: 90, mix: 100 } }], ['glow', { p: { thr: 40, radius: 40, int: 45, tint: '#c8ff55' } }], ['tone', { p: { vig: 45 } }], ['grain', { p: { amt: 35, col: 0 } }]]],
   ['Moyen format', [['medium']]],
   ['35 mm', [['film35', { p: { border: true, format: '135' } }]]],
   ['Instax', [['instax']]],
@@ -244,7 +245,6 @@ const LOOKS = [
   ['Balayage', [['tone', { p: { sat: 0, con: 35 } }], ['smear', { p: { len: 60, angle: 180, band: 25, irr: 90, lines: 70 } }], ['grain', { p: { amt: 50, col: 0 } }]]],
   ['Thermique', [['thermal', { p: { pal: 'rainbow', steps: 7, dither: 70, mix: 68, con: 10 } }], ['grain', { p: { amt: 35 } }]]],
   ['Film abîmé', [['tone', { p: { sat: 0, con: 45, exp: -10 } }], ['ghost', { p: { count: 2, dist: 16, angle: 40, decay: 85, mode: 'lighten' } }], ['texture', { p: { type: 'scratch', amt: 60 } }], ['grain', { p: { amt: 55, col: 0 } }]]],
-  ['Glitch bleu', [['auto', { p: { target: 45 } }], ['motion', { p: { shutter: 7, move: 50, angle: -10 } }], ['glitch', { pt: [0.5, 0.38], p: { n: 16, amt: 38, prob: 45, soft: 60, size: 42, dim: 60 } }], ['thermal', { p: { pal: 'bleu', steps: 33, con: 35, smooth: 0, rim: 0, mix: 100 } }], ['glow', { p: { thr: 40, radius: 50, int: 50, tint: '#a8b4ff' } }], ['grain', { p: { amt: 20 } }]], FACE_HINT],
 ];
 // Looks enregistrés par l'utilisateur (stockés dans ce navigateur).
 const STORE = 'wkndr-studio-looks';
@@ -266,7 +266,7 @@ function removeSaved(i) {
 function openSave() {
   if (!state.layers.length) { toast('Ajoutez d’abord un ou plusieurs effets'); return; }
   const box = $('#save'); box.hidden = !box.hidden;
-  $('#add').hidden = true; $('#export').hidden = true;
+  $('#add').hidden = true; $('#export').hidden = true; $('#all').hidden = true;
   if (box.hidden) return;
   const n = state.layers.length;
   $('#save-count').textContent = `${n} effet${n > 1 ? 's' : ''} : ${state.layers.map((l) => FX[l.fx].name).join(', ')}`;
@@ -290,9 +290,32 @@ function syncSave() {
   b.title = state.layers.length ? 'Enregistrer cette combinaison' : 'Ajoutez un effet pour enregistrer une combinaison';
 }
 
+const fold = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+function renderAll(query = '') {
+  const box = $('#all-list'); box.replaceChildren();
+  const q = fold(query.trim());
+  const chip = (name, run) => el('button', { class: 'look', onclick: () => { $('#all').hidden = true; run(); } }, name);
+  const section = (title, items) => {
+    const shown = items.filter(([n]) => !q || fold(n).includes(q));
+    if (!shown.length) return;
+    box.append(el('div', { class: 'group-title' }, title), el('div', { class: 'all-grid' }, ...shown.map(([n, run]) => chip(n, run))));
+  };
+  section('Mes looks', saved.map((s, i) => [s.name, () => applySaved(i)]));
+  section('Presets', LOOKS.map(([n, layers, hint]) => [n, () => applyLook(layers, hint)]));
+  if (!box.children.length) box.append(el('p', { class: 'save-sub' }, 'Aucun look ne correspond.'));
+}
+function openAll() {
+  const box = $('#all'); box.hidden = !box.hidden;
+  for (const id of ['#add', '#export', '#save']) $(id).hidden = true;
+  if (box.hidden) return;
+  $('#all-search').value = ''; renderAll();
+  setTimeout(() => $('#all-search').focus(), 30);
+}
+
 function renderLooks() {
   const nav = $('#looks'); nav.replaceChildren();
   nav.append(el('button', { class: 'icon', id: 'save-btn', 'data-act': 'save-menu', 'aria-label': 'Enregistrer cette combinaison', html: icon('M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1zM12 8v5M9.5 10.5h5') }));
+  nav.append(el('button', { class: 'icon', id: 'all-btn', 'data-act': 'all-menu', title: 'Tous les looks', 'aria-label': 'Tous les looks', html: icon('M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z') }));
   nav.append(el('button', { class: 'look reset', onclick: () => applyLook([]) }, 'Original'));
   saved.forEach((s, i) => nav.append(el('span', { class: 'look mine' },
     el('button', { class: 'look-main', onclick: () => applySaved(i) }, s.name),
@@ -404,15 +427,16 @@ const actions = {
   open: () => $('#file').click(),
   sample: async () => { try { const r = await fetch('exemple.jpg'); await setDocument(await createImageBitmap(await r.blob()), 'exemple'); } catch { toast('Exemple indisponible'); } },
   rotate, undo: () => travel(-1), redo: () => travel(1),
-  add: () => { $('#add').hidden = !$('#add').hidden; $('#export').hidden = true; $('#save').hidden = true; },
+  add: () => { $('#add').hidden = !$('#add').hidden; $('#export').hidden = true; $('#save').hidden = true; $('#all').hidden = true; },
   'save-menu': openSave,
-  'export-menu': () => { $('#export').hidden = !$('#export').hidden; $('#add').hidden = true; $('#save').hidden = true; },
+  'all-menu': openAll,
+  'export-menu': () => { $('#export').hidden = !$('#export').hidden; $('#add').hidden = true; $('#save').hidden = true; $('#all').hidden = true; },
   export: exportImage,
 };
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-act]');
   if (b) { actions[b.dataset.act](); return; }
-  for (const id of ['#add', '#export', '#save']) if (!e.target.closest(id)) $(id).hidden = true;
+  for (const id of ['#add', '#export', '#save', '#all']) if (!e.target.closest(id)) $(id).hidden = true;
 });
 $('#result').addEventListener('click', (e) => { if (e.target.tagName !== 'IMG') $('#result').hidden = true; });
 $('#file').addEventListener('change', (e) => { openFile(e.target.files[0]); e.target.value = ''; });
@@ -424,6 +448,7 @@ $('#file2').addEventListener('change', async (e) => {
     engine.setAsset(pickFor, bm); renderPanel(); draw();
   } catch { toast('Impossible de lire ce fichier'); }
 });
+$('#all-search').addEventListener('input', (e) => renderAll(e.target.value));
 $('#save').addEventListener('submit', (e) => { e.preventDefault(); commitSave(); });
 $('#ex-q').addEventListener('input', (e) => ($('#ex-q-out').textContent = e.target.value));
 $('#ex-type').addEventListener('change', (e) => ($('#ex-q-row').hidden = e.target.value === 'image/png'));
@@ -439,7 +464,7 @@ document.addEventListener('keydown', (e) => {
   if (mod && e.key.toLowerCase() === 'z' && !typing) { e.preventDefault(); travel(e.shiftKey ? 1 : -1); }
   else if (mod && e.key.toLowerCase() === 'o') { e.preventDefault(); actions.open(); }
   else if (mod && e.key.toLowerCase() === 'e') { e.preventDefault(); if (doc.bitmap) actions['export-menu'](); }
-  else if (e.key === 'Escape') { $('#save').hidden = true; $('#add').hidden = true; $('#export').hidden = true; $('#result').hidden = true; }
+  else if (e.key === 'Escape') { $('#all').hidden = true; $('#save').hidden = true; $('#add').hidden = true; $('#export').hidden = true; $('#result').hidden = true; }
   else if ((e.code === 'Space' || e.key.toLowerCase() === 'a') && !mod && !typing && !e.repeat) { e.preventDefault(); setBefore(true); }
 });
 document.addEventListener('keyup', (e) => { if (e.code === 'Space' || e.key.toLowerCase() === 'a') setBefore(false); });
