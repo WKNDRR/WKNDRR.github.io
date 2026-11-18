@@ -27,7 +27,7 @@
       </div>
       <h1>Déposez une photo</h1>
       <p>JPEG, PNG, WebP — ou un fichier RAW (aperçu intégré).</p>
-      <p class="ver">Version du 18 novembre</p>
+      <p class="ver">Version du 18 novembre, n° 2</p>
       <div class="empty-actions">
         <button class="btn primary" data-act="open">Choisir un fichier</button>
         <button class="btn" data-act="sample">Essayer avec un exemple</button>
@@ -70,6 +70,11 @@
   <nav id="looks" class="glass" aria-label="Looks"></nav>
 
   <div id="result" hidden><img alt="Image exportée"><p class="glass">Clic droit ou appui long sur l’image pour l’enregistrer · cliquez à côté pour fermer</p></div>
+
+  <div id="all" class="glass popover" hidden>
+    <input id="all-search" type="text" placeholder="Rechercher un look" aria-label="Rechercher un look" autocomplete="off">
+    <div id="all-list"></div>
+  </div>
 
   <form id="save" class="glass popover" hidden autocomplete="off">
     <div class="save-title">Enregistrer ce look</div>
